@@ -1,0 +1,55 @@
+{
+  "name": "uio",
+  "productName": "UIO",
+  "version": "0.1.0",
+  "description": "UIO — the open-source design studio. Your coding agents become the design engine. An open alternative to Claude Design, macOS-first.",
+  "license": "Apache-2.0",
+  "author": "UIO contributors",
+  "main": "dist-electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "node scripts/build-electron.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --mac",
+    "test:engine": "npm run build:electron && node scripts/test-engine.mjs"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/node": "^20.17.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "build": {
+    "appId": "dev.uio.app",
+    "productName": "UIO",
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "library/**"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
+  }
+}
