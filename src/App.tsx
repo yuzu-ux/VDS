@@ -4,11 +4,13 @@ import { uio } from './bridge';
 import { Home } from './screens/Home';
 import { Studio } from './screens/Studio';
 import { SettingsModal } from './components/SettingsModal';
-
-type View = { name: 'home' } | { name: 'studio'; projectId: string };
+import { TabBar } from './components/TabBar';
 
 export function App() {
-  const [view, setView] = useState<View>({ name: 'home' });
+  const [view, setView] = useState<'home' | 'studio'>('home');
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [openProjectName, setOpenProjectName] = useState<string | null>(null);
+  const [initialPrompt, setInitialPrompt] = useState<string | undefined>(undefined);
   const [runtimes, setRuntimes] = useState<RuntimeInfo[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -22,27 +24,51 @@ export function App() {
     void uio().getSettings().then(setSettings);
   }, [refreshRuntimes]);
 
-  const openProject = useCallback((projectId: string) => setView({ name: 'studio', projectId }), []);
-  const goHome = useCallback(() => setView({ name: 'home' }), []);
+  const openProject = useCallback((id: string, name: string, prompt?: string) => {
+    setOpenProjectId(id);
+    setOpenProjectName(name);
+    setInitialPrompt(prompt);
+    setView('studio');
+  }, []);
+
+  const goHome = useCallback(() => setView('home'), []);
+  const closeProject = useCallback(() => {
+    setOpenProjectId(null);
+    setOpenProjectName(null);
+    setView('home');
+  }, []);
 
   return (
     <div className="app">
-      <div className="drag-strip" />
-      {view.name === 'home' ? (
+      <TabBar
+        view={view}
+        projectName={openProjectName}
+        onHome={() => (openProjectId && view === 'home' ? setView('studio') : goHome())}
+        onNew={goHome}
+        onCloseProject={closeProject}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+
+      {view === 'home' ? (
         <Home
           runtimes={runtimes}
           settings={settings}
-          onOpenProject={openProject}
+          onOpenProject={(id, name, prompt) => openProject(id, name, prompt)}
           onOpenSettings={() => setShowSettings(true)}
         />
       ) : (
-        <Studio
-          projectId={view.projectId}
-          runtimes={runtimes}
-          settings={settings}
-          onBack={goHome}
-        />
+        openProjectId && (
+          <Studio
+            projectId={openProjectId}
+            initialPrompt={initialPrompt}
+            onConsumedInitialPrompt={() => setInitialPrompt(undefined)}
+            runtimes={runtimes}
+            settings={settings}
+            onBack={goHome}
+          />
+        )
       )}
+
       {showSettings && settings && (
         <SettingsModal
           runtimes={runtimes}

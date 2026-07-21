@@ -374,8 +374,8 @@ async function createWindow() {
     minHeight: 640,
     title: 'UIO',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: '#faf9f5',
+    trafficLightPosition: { x: 16, y: 15 },
+    backgroundColor: '#100e0d',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

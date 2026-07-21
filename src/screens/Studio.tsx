@@ -15,11 +15,13 @@ import { CanvasPane } from '../components/CanvasPane';
 
 export function Studio(props: {
   projectId: string;
+  initialPrompt?: string;
+  onConsumedInitialPrompt?: () => void;
   runtimes: RuntimeInfo[];
   settings: AppSettings | null;
   onBack: () => void;
 }) {
-  const { projectId, runtimes, settings, onBack } = props;
+  const { projectId, initialPrompt, onConsumedInitialPrompt, runtimes, settings, onBack } = props;
   const [project, setProject] = useState<ProjectMeta | null>(null);
   const [skill, setSkill] = useState<SkillInfo | null>(null);
   const [system, setSystem] = useState<DesignSystemInfo | null>(null);
@@ -37,6 +39,10 @@ export function Studio(props: {
 
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
   const activeRuntime = availableRuntimes.find((r) => r.id === runtimeId) ?? availableRuntimes[0] ?? null;
+  const source = settings?.engineSource ?? 'local-cli';
+  const isProvider = source !== 'local-cli';
+  const canSend = isProvider || !!activeRuntime;
+  const engineLabel = source === 'byok' ? 'Your API key' : source === 'hosted' ? 'Hosted' : activeRuntime?.name ?? 'No engine';
 
   // initial load
   useEffect(() => {
@@ -108,7 +114,7 @@ export function Studio(props: {
 
   const send = useCallback(
     async (text: string) => {
-      if (!activeRuntime || running) return;
+      if (!canSend || running || !text.trim()) return;
       setEntries((prev) => [...prev, { kind: 'user', text, at: Date.now() }]);
       setRunning(true);
       setRunStartedAt(Date.now());
@@ -119,8 +125,8 @@ export function Studio(props: {
         const { runId: id } = await uio().startTurn({
           projectId,
           prompt: text,
-          runtimeId: activeRuntime.id,
-          model: model !== 'default' ? model : undefined,
+          runtimeId: activeRuntime?.id ?? 'claude', // ignored by provider sources
+          model: !isProvider && model !== 'default' ? model : undefined,
           comments: toSend.length ? toSend : undefined,
         });
         setRunId(id);
@@ -132,8 +138,18 @@ export function Studio(props: {
         ]);
       }
     },
-    [activeRuntime, running, projectId, model, comments],
+    [canSend, isProvider, activeRuntime, running, projectId, model, comments],
   );
+
+  // Auto-send the prompt typed on the Home launcher, exactly once.
+  const sentInitial = useRef(false);
+  useEffect(() => {
+    if (sentInitial.current || !initialPrompt || !project) return;
+    if (!canSend) return; // wait until an engine is ready
+    sentInitial.current = true;
+    void send(initialPrompt);
+    onConsumedInitialPrompt?.();
+  }, [initialPrompt, project, canSend, send, onConsumedInitialPrompt]);
 
   const stop = useCallback(() => {
     if (runId) void uio().cancelTurn(runId);
@@ -165,17 +181,25 @@ export function Studio(props: {
           </div>
         </div>
         <div className="spacer" />
-        <select className="btn small" value={activeRuntime?.id ?? ''} onChange={(e) => setRuntimeId(e.target.value)} title="Design engine">
-          {availableRuntimes.length === 0 && <option value="">No engine detected</option>}
-          {availableRuntimes.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-        <select className="btn small" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
-          {(activeRuntime?.models ?? [{ id: 'default', label: 'Default model' }]).map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
-          ))}
-        </select>
+        {isProvider ? (
+          <span className="chip" title="Engine source (change in Settings)">
+            <span className="dot" /> {engineLabel}
+          </span>
+        ) : (
+          <>
+            <select className="btn small" value={activeRuntime?.id ?? ''} onChange={(e) => setRuntimeId(e.target.value)} title="Design engine">
+              {availableRuntimes.length === 0 && <option value="">No engine detected</option>}
+              {availableRuntimes.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+            <select className="btn small" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
+              {(activeRuntime?.models ?? [{ id: 'default', label: 'Default model' }]).map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </>
+        )}
         <button className="btn small" onClick={() => void uio().openInFinder(projectId)}>Reveal in Finder</button>
       </header>
 
@@ -184,7 +208,7 @@ export function Studio(props: {
           entries={entries}
           running={running}
           runStartedAt={runStartedAt}
-          engineName={activeRuntime?.name ?? null}
+          engineName={isProvider ? engineLabel : activeRuntime?.name ?? null}
           comments={comments}
           onRemoveComment={(i) => setComments((prev) => prev.filter((_, idx) => idx !== i))}
           onSend={send}
