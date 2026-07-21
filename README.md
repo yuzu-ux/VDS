@@ -14,6 +14,16 @@ Claude Design went viral — and stayed closed-source, cloud-only, subscription-
 - **Local-first** — projects are portable folders. `project.json` + your files. Git them, zip them, own them.
 - **Open formats** — skills are `SKILL.md` packages, brand contracts are `DESIGN.md`, deliberately compatible with the Open Design ecosystem so content flows between tools.
 
+## Three ways to power it (Settings → Engine)
+
+| Source | What runs where | For whom |
+|---|---|---|
+| **Local CLI** *(default)* | An agent CLI (`claude`, `codex`, …) on your Mac writes the files. 100% local. | You have an agent CLI / a plan. |
+| **Your API key** | UIO calls Anthropic or an OpenAI-compatible API directly with *your* key. Local except the model call; the key is encrypted in your Keychain. | You have an API key but no CLI. |
+| **Hosted** | UIO calls a small proxy the app owner runs; a per-user **usage token** meters you against the owner's account. Only the model call leaves your Mac. | **You have no plan at all** — design on the owner's subscription. |
+
+The hosted option is the answer to *"if they don't have a Claude plan, they can use my app subscription to design."* You deploy [`proxy/`](proxy/README.md) once (backed by a commercial API key), mint each user a token, and they paste it into Settings. Projects, preview, comments, and export stay entirely on the user's machine — the token is the only thing that ever leaves.
+
 ## What works today
 
 | Capability | Status |
@@ -23,6 +33,9 @@ Claude Design went viral — and stayed closed-source, cloud-only, subscription-
 | Claude Code engine with session resume, streamed TODOs and tool activity | ✅ |
 | Codex CLI engine (JSONL events) | ✅ |
 | cursor-agent · gemini · opencode · qwen | ⚠️ experimental, raw-stream |
+| Direct-API engine (your key): Anthropic + OpenAI-compatible, artifact profile | ✅ |
+| Hosted engine: owner's subscription via metered usage tokens (`proxy/`) | ✅ |
+| Encrypted secret storage (macOS Keychain via safeStorage) | ✅ |
 | Live sandboxed preview, zoom, source view | ✅ |
 | Comment mode — pin notes to elements, sent with your next message | ✅ |
 | Export standalone HTML / PDF (decks: one slide per page) | ✅ |
@@ -76,7 +89,7 @@ Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Roadmap
 
-- BYOK mode (direct Anthropic/OpenAI-compatible APIs, `<artifact>` profile) for machines without agent CLIs
+- Streaming token/quota readout in the app for hosted users (spend so far this month)
 - Structured direction picker and clarifying-question forms as inline chat cards
 - Adjustment knobs (spacing / color / radius) that patch tokens live
 - Image placeholder → generation hooks, PPTX export, share bundles

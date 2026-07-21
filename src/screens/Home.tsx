@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type {
   AppSettings,
   DesignSystemInfo,
+  EngineCheck,
   Fidelity,
   ProjectMeta,
   RuntimeInfo,
@@ -41,10 +42,17 @@ export function Home(props: {
     void refresh();
   }, []);
 
-  const activeRuntime = useMemo(() => {
-    const preferred = runtimes.find((r) => r.id === settings?.defaultRuntimeId && r.available);
-    return preferred ?? runtimes.find((r) => r.available) ?? null;
-  }, [runtimes, settings]);
+  const [engineCheck, setEngineCheck] = useState<EngineCheck | null>(null);
+  const engineSource = settings?.engineSource ?? 'local-cli';
+
+  useEffect(() => {
+    void uio().checkEngine(engineSource).then(setEngineCheck);
+  }, [engineSource, runtimes]);
+
+  const engineLabel = useMemo(() => {
+    const kind = engineSource === 'local-cli' ? 'Local CLI' : engineSource === 'byok' ? 'Your API key' : 'Hosted';
+    return `${kind} · ${engineCheck?.detail ?? '…'}`;
+  }, [engineSource, engineCheck]);
 
   const filteredProjects = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -151,9 +159,9 @@ export function Home(props: {
         </div>
 
         <div className="foot">
-          <span className="chip" title={activeRuntime?.resolvedPath ?? 'No engine detected'}>
-            <span className={`dot ${activeRuntime ? '' : 'off'}`} />
-            {activeRuntime ? `Local CLI · ${activeRuntime.name} · ${activeRuntime.version}` : 'No design engine detected'}
+          <span className="chip" title={engineCheck?.detail ?? ''}>
+            <span className={`dot ${engineCheck?.ok ? '' : 'off'}`} />
+            {engineLabel}
           </span>
           <button className="btn ghost small" onClick={onOpenSettings}>
             Settings

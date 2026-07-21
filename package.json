@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder --mac",
-    "test:engine": "npm run build:electron && node scripts/test-engine.mjs"
+    "test:engine": "npm run build:electron && node scripts/test-engine.mjs",
+    "test:provider": "node scripts/test-provider.mjs",
+    "test:proxy": "node proxy/test-proxy.mjs"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

@@ -66,6 +66,18 @@ const mem = {
   files: new Map<string, Map<string, string>>(),
   listeners: new Set<(e: EngineEventEnvelope) => void>(),
   fileListeners: new Set<(i: { projectId: string; path: string }) => void>(),
+  settings: {
+    defaultRuntimeId: 'claude',
+    defaultModel: null,
+    projectsRoot: '~/UIO Projects',
+    engineSource: 'local-cli',
+    byokProvider: 'anthropic',
+    byokBaseUrl: 'https://api.anthropic.com',
+    byokModel: 'claude-sonnet-4-5',
+    hostedEndpoint: '',
+    hostedModel: 'default',
+  } as import('../shared/types').AppSettings,
+  secrets: { byokKeyConfigured: false, hostedTokenConfigured: false },
 };
 
 function emit(envelope: EngineEventEnvelope) {
@@ -142,6 +154,16 @@ const mock: UioBridge = {
   async openInFinder() {},
   async openExternal(url) { window.open(url, '_blank'); },
 
-  async getSettings() { return { defaultRuntimeId: 'claude', defaultModel: null, projectsRoot: '~/UIO Projects' }; },
-  async setSettings(patch) { return { defaultRuntimeId: 'claude', defaultModel: null, projectsRoot: '~/UIO Projects', ...patch }; },
+  async getSettings() { return { ...mem.settings }; },
+  async setSettings(patch) { mem.settings = { ...mem.settings, ...patch }; return { ...mem.settings }; },
+
+  async getSecretStatus() { return { ...mem.secrets, encryptionAvailable: true }; },
+  async setSecret(name) { if (name === 'byokKey') mem.secrets.byokKeyConfigured = true; else mem.secrets.hostedTokenConfigured = true; return { ...mem.secrets, encryptionAvailable: true }; },
+  async clearSecret(name) { if (name === 'byokKey') mem.secrets.byokKeyConfigured = false; else mem.secrets.hostedTokenConfigured = false; return { ...mem.secrets, encryptionAvailable: true }; },
+  async checkEngine(source) {
+    const src = source ?? mem.settings.engineSource;
+    if (src === 'local-cli') return { source: src, ok: true, detail: 'Claude Code (browser mock)' };
+    if (src === 'byok') return { source: src, ok: mem.secrets.byokKeyConfigured, detail: mem.secrets.byokKeyConfigured ? `${mem.settings.byokProvider} · ${mem.settings.byokModel}` : 'No API key set.' };
+    return { source: src, ok: mem.secrets.hostedTokenConfigured, detail: mem.secrets.hostedTokenConfigured ? 'Reachable (mock)' : 'No usage token set.' };
+  },
 };

@@ -249,6 +249,31 @@ button, input, select, textarea, [role="button"] { -webkit-app-region: no-drag; 
 .note-pop .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
 /* settings */
+.modal.wide { width: 620px; }
+.modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.check-area { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.check-result { font-family: var(--mono); font-size: 11px; }
+.check-result.ok { color: var(--ok); }
+.check-result.bad { color: var(--err); }
+.saved-note { font-size: 11px; color: var(--muted); }
+.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+
+.source-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.source-card { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.source-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.source-card .src-label { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.source-card .src-blurb { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+.engine-config { border-top: 1px solid var(--line); padding-top: 14px; }
+.engine-config .row2 { display: flex; gap: 10px; align-items: flex-end; }
+.engine-config .row2 > .field { flex: 1; }
+.engine-config .row2 input[type="password"] { flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none; background: var(--surface); }
+.engine-config .row2 input[type="password"]:focus { border-color: var(--accent); }
+.btn-inline { display: flex; gap: 6px; }
+.hint-line { font-size: 11px; color: var(--faint); margin-top: 6px; }
+.hosted-explainer { font-size: 12px; color: var(--muted); background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; line-height: 1.5; }
+.warn-line { font-size: 12px; color: var(--err); margin-top: 12px; }
+
 .settings-list { display: flex; flex-direction: column; gap: 10px; }
 .runtime-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); }
 .runtime-row .info { flex: 1; min-width: 0; }

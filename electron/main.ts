@@ -6,17 +6,22 @@ import { promises as fs, watch, type FSWatcher } from 'node:fs';
 import * as path from 'node:path';
 import type {
   AppSettings,
+  EngineCheck,
   EngineEvent,
   EngineEventEnvelope,
+  EngineSource,
   ProjectMeta,
+  SecretName,
   StartTurnRequest,
 } from '../shared/types';
-import { startRun, type RunHandle } from './core/engine';
+import { startRun, type RunCallbacks, type RunHandle } from './core/engine';
 import { entryAbsPath, exportHtml, exportPdf } from './core/exporter';
 import { Library } from './core/library';
 import { defaultProjectsRoot, ProjectStore } from './core/projects';
 import { detectRuntimes } from './core/runtimes';
-import { composeTurnPrompt } from './core/prompt';
+import { composeProviderPrompt, composeTurnPrompt } from './core/prompt';
+import { anthropicHeaders, joinUrl, openaiHeaders, runProviderTurn, type ProviderTurnOptions } from './core/providers';
+import { SecretStore } from './core/secrets';
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
 
@@ -25,6 +30,7 @@ const store = new ProjectStore(defaultProjectsRoot());
 const library = new Library(path.join(app.getAppPath(), 'library'));
 const activeRuns = new Map<string, RunHandle>();
 const watchers = new Map<string, FSWatcher>();
+let secrets: SecretStore; // constructed after app is ready (needs userData path)
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -36,6 +42,12 @@ async function loadSettings(): Promise<AppSettings> {
     defaultRuntimeId: null,
     defaultModel: null,
     projectsRoot: defaultProjectsRoot(),
+    engineSource: 'local-cli',
+    byokProvider: 'anthropic',
+    byokBaseUrl: 'https://api.anthropic.com',
+    byokModel: 'claude-sonnet-4-5',
+    hostedEndpoint: '',
+    hostedModel: 'default',
   };
   try {
     const raw = await fs.readFile(settingsPath(), 'utf8');
@@ -80,18 +92,58 @@ async function handleStartTurn(req: StartTurnRequest): Promise<{ runId: string }
   if (!meta) throw new Error(`Unknown project: ${req.projectId}`);
   const skill = await library.getSkill(meta.skillId);
   if (!skill) throw new Error(`Unknown skill: ${meta.skillId}`);
-  const runtimes = await detectRuntimes();
-  const runtime = runtimes.find((r) => r.id === req.runtimeId);
-  if (!runtime?.available || !runtime.resolvedPath) {
-    throw new Error(`Runtime not available: ${req.runtimeId}`);
-  }
+
+  const settings = await loadSettings();
+  const source: EngineSource = req.source ?? settings.engineSource ?? 'local-cli';
 
   const transcript = await store.readTranscript(meta);
   const isFirstTurn = !transcript.some((t) => t.kind === 'user');
 
+  await store.appendTranscript(meta, { kind: 'user', text: req.prompt, at: Date.now() });
+  ensureWatcher(meta);
+
+  // Shared per-run bookkeeping. `handle` is captured lazily: the engines emit
+  // their first event synchronously, before returning, at which point the
+  // renderer keys off projectId (not runId), so a 'pending' id is harmless.
+  let handle: RunHandle;
+  const callbacks = (): RunCallbacks => ({
+    onEvent: (event) => {
+      if (event.type !== 'raw') void store.appendTranscript(meta, { kind: 'event', event, at: Date.now() });
+      sendEngineEvent({ runId: handle?.runId ?? 'pending', projectId: meta.id, event });
+      if (event.type === 'file' || event.type === 'result') void store.save(meta);
+    },
+    onSession: (sessionId) => {
+      meta.runtimeSessions[req.runtimeId] = sessionId;
+      void store.save(meta);
+    },
+    onExit: () => {
+      activeRuns.delete(handle?.runId ?? '');
+    },
+  });
+
+  if (source === 'local-cli') {
+    handle = await startLocalCliTurn(req, meta, skill, isFirstTurn, callbacks());
+  } else {
+    handle = await startProviderTurn(source, settings, meta, skill, isFirstTurn, req, callbacks());
+  }
+  activeRuns.set(handle.runId, handle);
+  return { runId: handle.runId };
+}
+
+async function startLocalCliTurn(
+  req: StartTurnRequest,
+  meta: ProjectMeta,
+  skill: Awaited<ReturnType<typeof library.getSkill>> & object,
+  isFirstTurn: boolean,
+  cb: RunCallbacks,
+): Promise<RunHandle> {
+  const runtimes = await detectRuntimes();
+  const runtime = runtimes.find((r) => r.id === req.runtimeId) ?? runtimes.find((r) => r.available);
+  if (!runtime?.available || !runtime.resolvedPath) {
+    throw new Error('No local agent CLI is available. Install one (e.g. `claude`) or switch the engine to your API key / hosted in Settings.');
+  }
   // Refresh skill/design-system copies so library edits reach existing projects.
   await library.installIntoWorkspace(meta.dir, meta.skillId, meta.designSystemId);
-
   const prompt = composeTurnPrompt({
     project: meta,
     skill,
@@ -100,41 +152,132 @@ async function handleStartTurn(req: StartTurnRequest): Promise<{ runId: string }
     userPrompt: req.prompt,
     comments: req.comments,
   });
-
-  await store.appendTranscript(meta, { kind: 'user', text: req.prompt, at: Date.now() });
-  ensureWatcher(meta);
-
-  const persistEvent = (event: EngineEvent) => {
-    if (event.type === 'raw') return;
-    void store.appendTranscript(meta, { kind: 'event', event, at: Date.now() });
-  };
-
-  const handle = await startRun(
+  return startRun(
     {
-      runtimeId: req.runtimeId,
+      runtimeId: runtime.id,
       resolvedPath: runtime.resolvedPath,
       cwd: meta.dir,
       prompt,
       model: req.model,
-      resumeSessionId: runtime.supportsResume ? meta.runtimeSessions[req.runtimeId] : undefined,
+      resumeSessionId: runtime.supportsResume ? meta.runtimeSessions[runtime.id] : undefined,
     },
-    {
-      onEvent: (event) => {
-        persistEvent(event);
-        sendEngineEvent({ runId: handle?.runId ?? 'pending', projectId: meta.id, event });
-        if (event.type === 'file' || event.type === 'result') void store.save(meta);
-      },
-      onSession: (sessionId) => {
-        meta.runtimeSessions[req.runtimeId] = sessionId;
-        void store.save(meta);
-      },
-      onExit: () => {
-        activeRuns.delete(handle?.runId ?? '');
-      },
-    },
+    cb,
   );
-  activeRuns.set(handle.runId, handle);
-  return { runId: handle.runId };
+}
+
+async function startProviderTurn(
+  source: Exclude<EngineSource, 'local-cli'>,
+  settings: AppSettings,
+  meta: ProjectMeta,
+  skill: Awaited<ReturnType<typeof library.getSkill>> & object,
+  isFirstTurn: boolean,
+  req: StartTurnRequest,
+  cb: RunCallbacks,
+): Promise<RunHandle> {
+  const seedHtml = await library.readSkillSeed(meta.skillId);
+  const designSystemContract = meta.designSystemId
+    ? await library.readDesignSystemContract(meta.designSystemId).catch(() => null)
+    : null;
+  const currentFileContent = isFirstTurn ? null : await readEntryIfExists(meta, skill.entry);
+
+  const { system, user } = composeProviderPrompt({
+    skill,
+    seedHtml,
+    designSystemContract,
+    fidelity: meta.fidelity,
+    isFirstTurn,
+    currentFileContent,
+    userPrompt: req.prompt,
+    comments: req.comments,
+  });
+
+  const opts = await buildProviderOptions(source, settings, meta, skill.entry);
+  return runProviderTurn({ ...opts, systemPrompt: system, userText: user }, cb);
+}
+
+async function readEntryIfExists(meta: ProjectMeta, entry: string): Promise<string | null> {
+  try {
+    return await store.readFile(meta, entry);
+  } catch {
+    return null;
+  }
+}
+
+async function buildProviderOptions(
+  source: Exclude<EngineSource, 'local-cli'>,
+  settings: AppSettings,
+  meta: ProjectMeta,
+  entry: string,
+): Promise<Omit<ProviderTurnOptions, 'systemPrompt' | 'userText'>> {
+  const base = { workspace: meta.dir, entry };
+  if (source === 'byok') {
+    const key = await secrets.get('byokKey');
+    if (!key) throw new Error('No API key set. Add one in Settings → Engine → Your API key.');
+    if (settings.byokProvider === 'openai') {
+      const url = validateHttpUrl(joinUrl(settings.byokBaseUrl, '/v1/chat/completions'));
+      return { ...base, wire: 'openai', url, headers: openaiHeaders(key), model: settings.byokModel };
+    }
+    const url = validateHttpUrl(joinUrl(settings.byokBaseUrl, '/v1/messages'));
+    return { ...base, wire: 'anthropic', url, headers: anthropicHeaders(key), model: settings.byokModel };
+  }
+  // hosted: the owner's proxy holds the real key; we send only a usage token.
+  const token = await secrets.get('hostedToken');
+  if (!token) throw new Error('No usage token set. Add the token from your provider in Settings → Engine → Hosted.');
+  if (!settings.hostedEndpoint) throw new Error('No hosted endpoint set in Settings → Engine → Hosted.');
+  const url = validateHttpUrl(joinUrl(settings.hostedEndpoint, '/v1/design/stream'));
+  return {
+    ...base,
+    wire: 'anthropic',
+    url,
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    model: settings.hostedModel || 'default',
+  };
+}
+
+/** Reject non-http(s) and obvious internal hosts before we ever send a key. */
+function validateHttpUrl(raw: string): string {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(`Invalid endpoint URL: ${raw}`);
+  }
+  if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+    throw new Error('Endpoint must use https (localhost may use http).');
+  }
+  return u.toString();
+}
+
+async function checkEngine(source: EngineSource): Promise<EngineCheck> {
+  try {
+    if (source === 'local-cli') {
+      const runtimes = await detectRuntimes();
+      const available = runtimes.filter((r) => r.available);
+      return available.length
+        ? { source, ok: true, detail: available.map((r) => r.name).join(', ') }
+        : { source, ok: false, detail: 'No agent CLI found on PATH. Install `claude` or `codex`, or use a different engine.' };
+    }
+    const settings = await loadSettings();
+    const status = await secrets.status();
+    if (source === 'byok') {
+      if (!status.byokKeyConfigured) return { source, ok: false, detail: 'No API key set.' };
+      return { source, ok: true, detail: `${settings.byokProvider} · ${settings.byokModel}` };
+    }
+    // hosted: verify token + a reachable /health endpoint.
+    if (!status.hostedTokenConfigured) return { source, ok: false, detail: 'No usage token set.' };
+    if (!settings.hostedEndpoint) return { source, ok: false, detail: 'No hosted endpoint set.' };
+    try {
+      const url = validateHttpUrl(joinUrl(settings.hostedEndpoint, '/health'));
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      return res.ok
+        ? { source, ok: true, detail: `Reachable · ${settings.hostedModel}` }
+        : { source, ok: false, detail: `Endpoint returned ${res.status}.` };
+    } catch (err) {
+      return { source, ok: false, detail: `Cannot reach endpoint: ${(err as Error).message}` };
+    }
+  } catch (err) {
+    return { source, ok: false, detail: (err as Error).message };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +350,14 @@ function registerIpc() {
     store.setRoot(next.projectsRoot);
     return next;
   });
+
+  ipcMain.handle('secrets:status', () => secrets.status());
+  ipcMain.handle('secrets:set', (_e, name: SecretName, value: string) => secrets.set(name, value));
+  ipcMain.handle('secrets:clear', (_e, name: SecretName) => secrets.clear(name));
+  ipcMain.handle('engine:check', async (_e, source?: EngineSource) => {
+    const src = source ?? (await loadSettings()).engineSource;
+    return checkEngine(src);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +396,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  secrets = new SecretStore(app.getPath('userData'));
   registerIpc();
   await createWindow();
   // Warm the runtime cache so Home shows the engine chip quickly.

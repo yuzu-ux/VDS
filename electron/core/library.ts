@@ -122,6 +122,22 @@ export class Library {
   }
 
   /**
+   * The skill's seed HTML (assets/*.html). Needed by the direct-API profile,
+   * which has no file tools and must receive the seed inline in the prompt.
+   */
+  async readSkillSeed(id: string): Promise<string> {
+    const skill = await this.getSkill(id);
+    if (!skill) return '';
+    const assets = path.join(skill.dir, 'assets');
+    try {
+      const files = await fs.readdir(assets);
+      const html = files.find((f) => f.endsWith('.html'));
+      if (html) return await fs.readFile(path.join(assets, html), 'utf8');
+    } catch {}
+    return '';
+  }
+
+  /**
    * Copy the chosen skill (and design system contract) into the project
    * workspace under .uio/ so the agent can read everything with its own file
    * tools — the filesystem is the interface, no long prompts needed.

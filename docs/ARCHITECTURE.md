@@ -47,9 +47,38 @@ Prompts stay small because the filesystem is the interface: big resources are
 files the agent reads, not text we inline. This is also why engines without
 session resume still work — the workspace is the shared memory.
 
-BYOK / plain-API engines (no file tools) are a planned second execution
-profile: the model returns one complete `<artifact>` block that the host
-materializes into the same workspace. The seam exists in `RuntimeDef.streamFormat`.
+### Text-artifact execution profile (direct-API / hosted)
+
+Engines without file tools use a second profile, implemented in
+`electron/core/providers.ts`. `handleStartTurn` in `main.ts` dispatches on the
+configured **engine source**:
+
+- `local-cli` → spawn a CLI (above).
+- `byok` → call Anthropic `…/v1/messages` or an OpenAI-compatible
+  `…/v1/chat/completions` directly with the user's key.
+- `hosted` → call the owner's proxy at `…/v1/design/stream` with only a
+  per-user usage token; the proxy injects the real key server-side.
+
+All three share the streaming client and `electron/core/artifact.ts`: the model
+returns prose plus one `<artifact>…</artifact>` HTML document (falling back to a
+fenced ```html block or a raw `<!doctype html>`). Prose streams to chat live;
+the document is held back, extracted, and written to the workspace entry file so
+preview/export behave exactly like a CLI run. The prompt is composed by
+`composeProviderPrompt` (seed + design tokens inlined, since there are no file
+tools). Secrets live encrypted via `electron/core/secrets.ts` (macOS Keychain
+through Electron `safeStorage`); the renderer only ever learns whether a secret
+is set, never its value. `validateHttpUrl` refuses non-`https` endpoints
+(except `localhost`) before any key is sent.
+
+### Hosted proxy (`proxy/`)
+
+The one server-side component, and the only thing that leaves the user's Mac in
+hosted mode. A zero-dependency Node server that holds the owner's commercial API
+key, authenticates per-user usage tokens with monthly USD caps, relays the
+provider's SSE verbatim, and meters spend from the stream's token-usage events.
+It exists so users **without any plan of their own** can design on the owner's
+subscription. See `proxy/README.md` — including why it must be backed by a
+commercial API key, not a personal Pro/Max seat.
 
 ## 3. Runtime registry (`electron/core/runtimes.ts`)
 
@@ -131,7 +160,11 @@ with the next turn as a structured block in the prompt.
 | Daemon composition, IPC, watchers | `electron/main.ts` |
 | Runtime defs + detection + spawn | `electron/core/runtimes.ts` |
 | Run lifecycle + stream parsers | `electron/core/engine.ts` |
-| Prompt composer | `electron/core/prompt.ts` |
+| Direct-API / hosted streaming client | `electron/core/providers.ts` |
+| HTML artifact extraction | `electron/core/artifact.ts` |
+| Encrypted secret storage (Keychain) | `electron/core/secrets.ts` |
+| Prompt composer (both profiles) | `electron/core/prompt.ts` |
+| Hosted proxy (owner's subscription) | `proxy/server.mjs` |
 | Project store + transcripts | `electron/core/projects.ts` |
 | Library registries + workspace install | `electron/core/library.ts` |
 | HTML/PDF export | `electron/core/exporter.ts` |

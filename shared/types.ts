@@ -5,6 +5,17 @@ export const APP_NAME = 'UIO';
 export const APP_TAGLINE = 'UI, Open — your coding agents become the design engine.';
 
 // ---------------------------------------------------------------------------
+// Engine source — where generation actually runs.
+//   'local-cli' : an agent CLI on the user's PATH (filesystem profile, default)
+//   'byok'      : the user's own API key, called directly (text-artifact profile)
+//   'hosted'    : the app owner's hosted proxy — the user has no plan of their
+//                 own and borrows the owner's subscription, metered by a usage
+//                 token. The ONLY part that leaves the machine.
+export type EngineSource = 'local-cli' | 'byok' | 'hosted';
+
+export type ProviderKind = 'anthropic' | 'openai';
+
+// ---------------------------------------------------------------------------
 // Runtimes (agent CLIs)
 
 export interface RuntimeModelOption {
@@ -106,6 +117,8 @@ export interface StartTurnRequest {
   model?: string;
   /** Inline comments captured on preview elements, folded into the prompt. */
   comments?: ElementComment[];
+  /** Override the configured engine source for this turn (optional). */
+  source?: EngineSource;
 }
 
 export interface ElementComment {
@@ -128,6 +141,37 @@ export interface AppSettings {
   defaultRuntimeId: string | null;
   defaultModel: string | null;
   projectsRoot: string;
+
+  /** Which engine the app uses when you press Send. Defaults to local-cli. */
+  engineSource: EngineSource;
+
+  // Bring-your-own-key (direct API) — non-secret config. The key itself lives
+  // encrypted in secrets storage, never here.
+  byokProvider: ProviderKind;
+  byokBaseUrl: string; // e.g. https://api.anthropic.com or an OpenAI-compatible base
+  byokModel: string;
+
+  // Hosted fallback — the app owner's proxy. Non-secret config; the usage
+  // token lives encrypted in secrets storage.
+  hostedEndpoint: string; // e.g. https://uio-proxy.example.com
+  hostedModel: string; // a model label the proxy maps to a real model server-side
+}
+
+/** What the renderer is allowed to know about stored secrets: presence only. */
+export interface SecretStatus {
+  byokKeyConfigured: boolean;
+  hostedTokenConfigured: boolean;
+  /** False on platforms where OS-encrypted storage is unavailable. */
+  encryptionAvailable: boolean;
+}
+
+export type SecretName = 'byokKey' | 'hostedToken';
+
+/** Result of a lightweight connectivity check for the active engine source. */
+export interface EngineCheck {
+  source: EngineSource;
+  ok: boolean;
+  detail: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,4 +208,12 @@ export interface UioBridge {
 
   getSettings(): Promise<AppSettings>;
   setSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+
+  // Secrets: renderer can set/clear and learn presence, never read values back.
+  getSecretStatus(): Promise<SecretStatus>;
+  setSecret(name: SecretName, value: string): Promise<SecretStatus>;
+  clearSecret(name: SecretName): Promise<SecretStatus>;
+
+  /** Probe the currently-selected engine source without running a full turn. */
+  checkEngine(source?: EngineSource): Promise<EngineCheck>;
 }

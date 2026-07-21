@@ -35,6 +35,11 @@ const bridge: UioBridge = {
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+
+  getSecretStatus: () => ipcRenderer.invoke('secrets:status'),
+  setSecret: (name, value) => ipcRenderer.invoke('secrets:set', name, value),
+  clearSecret: (name) => ipcRenderer.invoke('secrets:clear', name),
+  checkEngine: (source) => ipcRenderer.invoke('engine:check', source),
 };
 
 contextBridge.exposeInMainWorld('uio', bridge);

@@ -72,3 +72,64 @@ function renderComments(comments?: ElementComment[]): string {
   );
   return `\n\n### Inline comments pinned to elements\n${lines.join('\n')}`;
 }
+
+// ---------------------------------------------------------------------------
+// Direct-API / hosted profile: the model has no file tools, so the seed and
+// design tokens are inlined and the deliverable comes back as one <artifact>.
+
+export function composeProviderPrompt(opts: {
+  skill: SkillInfo;
+  seedHtml: string;
+  designSystemContract: string | null;
+  fidelity: Fidelity;
+  isFirstTurn: boolean;
+  currentFileContent: string | null;
+  userPrompt: string;
+  comments?: ElementComment[];
+}): { system: string; user: string } {
+  const { skill, seedHtml, designSystemContract, fidelity, isFirstTurn, currentFileContent, userPrompt, comments } = opts;
+  const kind = skill.mode === 'deck' ? 'slide deck' : 'web page';
+
+  const system = [
+    `You are the design engine inside UIO, an open-source design studio. You produce one polished, self-contained ${kind} as a single HTML document.`,
+    fidelityClause(fidelity).replace(/^## Fidelity\n/, 'Fidelity — '),
+    `Craft rules:
+- Compose from the provided seed; keep its token system and class names. Map the design system's colors onto the seed's :root variables.
+- ${skill.mode === 'deck' ? 'One <section class="slide"> per slide; keep the seed navigation and print CSS.' : 'Real information architecture and real copy from the brief — no lorem ipsum, no [placeholder] strings.'}
+- Fully self-contained: inline all CSS/JS, no external URLs, no web fonts, no remote images (use the seed's placeholder blocks).
+- Put data-uio-id on every top-level ${skill.mode === 'deck' ? 'slide' : 'section'} so elements can be targeted by comments.
+- Single accent color, used sparingly.`,
+    `OUTPUT CONTRACT — obey exactly:
+Return your final document as ONE block:
+<artifact identifier="${skill.mode === 'deck' ? 'deck' : 'index'}" type="text/html" title="...">
+<!doctype html> … full document … </html>
+</artifact>
+Before the block, write at most 2 short sentences: the direction you chose and why. After the block, write nothing. Do not describe the code or paste it twice. There are no file tools — the artifact block IS the deliverable.`,
+  ].join('\n\n');
+
+  const parts: string[] = [];
+  parts.push(`## Brief\n${userPrompt.trim()}`);
+  parts.push(
+    designSystemContract
+      ? `## Design system (obey these tokens)\n${clip(designSystemContract, 2400)}`
+      : `## Design system\nNone — freeform. Choose one tasteful, coherent direction and hold it.`,
+  );
+  if (currentFileContent) {
+    parts.push(
+      `## Current document (edit this — do not start from scratch)\nApply the requested changes to the document below and return the full updated document in the artifact block.\n\n\`\`\`html\n${clip(currentFileContent, 14000)}\n\`\`\``,
+    );
+  } else {
+    parts.push(`## Seed to compose from\n\`\`\`html\n${clip(seedHtml, 9000)}\n\`\`\``);
+  }
+  if (isFirstTurn && !currentFileContent) {
+    parts.push(`## Note\nThis is the first version. Commit to one direction and build it fully now — do not ask for approval first.`);
+  }
+  const commentBlock = renderComments(comments);
+  if (commentBlock) parts.push(commentBlock.trim());
+
+  return { system, user: parts.join('\n\n') };
+}
+
+function clip(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + '\n<!-- …truncated… -->' : text;
+}

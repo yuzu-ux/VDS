@@ -1,0 +1,9 @@
+{
+  "uio_EXAMPLE_replace_me_with_a_minted_token": {
+    "label": "demo-user",
+    "monthlyLimitUsd": 5,
+    "model": "default",
+    "disabled": false,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
+}
