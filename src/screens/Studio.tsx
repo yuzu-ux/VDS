@@ -48,9 +48,11 @@ export function Studio(props: {
 
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
   // Prefer a CLI that is actually logged in — an installed-but-unauthenticated
-  // CLI (e.g. claude before /login) would fail every run.
+  // CLI (e.g. claude before /login) would fail every run. Even an explicit
+  // selection is skipped while it reads "login required" (Rescan re-probes).
+  const explicitRuntime = availableRuntimes.find((r) => r.id === runtimeId);
   const activeRuntime =
-    availableRuntimes.find((r) => r.id === runtimeId) ??
+    (explicitRuntime && explicitRuntime.authenticated !== false ? explicitRuntime : undefined) ??
     availableRuntimes.find((r) => r.authenticated !== false) ??
     availableRuntimes[0] ??
     null;

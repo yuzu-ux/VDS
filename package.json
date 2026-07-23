@@ -40,8 +40,13 @@
     "productName": "VDS",
     "files": [
       "dist/**",
-      "dist-electron/**",
-      "library/**"
+      "dist-electron/**"
+    ],
+    "extraResources": [
+      {
+        "from": "library",
+        "to": "library"
+      }
     ],
     "directories": {
       "output": "release"

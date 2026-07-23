@@ -27,7 +27,12 @@ const isDev = !!process.env.VITE_DEV_SERVER_URL;
 
 let mainWindow: BrowserWindow | null = null;
 const store = new ProjectStore(defaultProjectsRoot());
-const library = new Library(path.join(app.getAppPath(), 'library'));
+// Packaged builds ship the library as an unpacked extraResource — fs.cp()
+// cannot copy out of app.asar, and installIntoWorkspace clones whole skill
+// directories into each project workspace.
+const library = new Library(
+  app.isPackaged ? path.join(process.resourcesPath, 'library') : path.join(app.getAppPath(), 'library'),
+);
 const activeRuns = new Map<string, RunHandle>();
 const watchers = new Map<string, FSWatcher>();
 let secrets: SecretStore; // constructed after app is ready (needs userData path)

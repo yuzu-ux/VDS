@@ -69,8 +69,13 @@ export const RUNTIME_DEFS: RuntimeDef[] = [
     promptDelivery: 'stdin',
     buildArgs: ({ model, resumeSessionId }) => {
       const args = ['exec'];
-      if (resumeSessionId) args.push('resume', resumeSessionId);
-      args.push('--json', '--skip-git-repo-check', '--sandbox', 'workspace-write');
+      if (resumeSessionId) {
+        // `codex exec resume` rejects --sandbox; the mode must ride in as a
+        // config override instead (same effect, different spelling).
+        args.push('resume', resumeSessionId, '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"');
+      } else {
+        args.push('--json', '--skip-git-repo-check', '--sandbox', 'workspace-write');
+      }
       if (model && model !== 'default') args.push('--model', model);
       args.push('-'); // read prompt from stdin
       return args;
@@ -207,27 +212,44 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-function keychainHas(service: string): Promise<boolean> {
+function execOut(binPath: string, args: string[], env: NodeJS.ProcessEnv): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile('/usr/bin/security', ['find-generic-password', '-s', service], { timeout: 4000 }, (err) =>
-      resolve(!err),
-    );
+    // `claude auth status` exits 1 when logged out but still prints its JSON —
+    // keep the output regardless of exit code.
+    execFile(binPath, args, { env, timeout: 8000 }, (_err, stdout, stderr) => resolve(stdout || stderr || null));
   });
 }
 
-async function probeAuth(defId: string): Promise<{ authenticated?: boolean; authHint?: string }> {
+async function probeAuth(
+  defId: string,
+  env: NodeJS.ProcessEnv,
+  binPath: string,
+): Promise<{ authenticated?: boolean; authHint?: string }> {
   const home = os.homedir();
   if (defId === 'claude') {
-    const ok =
-      (await fileExists(path.join(home, '.claude', '.credentials.json'))) ||
-      (await keychainHas('Claude Code-credentials'));
-    return ok
-      ? { authenticated: true }
-      : {
-          authenticated: false,
-          authHint:
-            'Claude Code is installed but not authenticated. Open a terminal, run `claude` and complete /login, then Rescan.',
-        };
+    // Ask the CLI itself — static signals (keychain items, ~/.claude.json) can
+    // belong to the desktop app and read as logged-in when the CLI is not.
+    const out = await execOut(binPath, ['auth', 'status'], env);
+    if (out) {
+      try {
+        const parsed = JSON.parse(out) as { loggedIn?: boolean };
+        if (typeof parsed.loggedIn === 'boolean') {
+          return parsed.loggedIn
+            ? { authenticated: true }
+            : {
+                authenticated: false,
+                authHint:
+                  'Claude Code is installed but not authenticated. Open a terminal, run `claude` and complete /login, then Rescan.',
+              };
+        }
+      } catch {
+        /* non-JSON output — fall through */
+      }
+    }
+    // Older CLI without `auth status`: only the CLI's own credential file is
+    // trustworthy; absence proves nothing, so report unknown.
+    const ok = await fileExists(path.join(home, '.claude', '.credentials.json'));
+    return ok ? { authenticated: true } : {};
   }
   if (defId === 'codex') {
     const ok = await fileExists(path.join(home, '.codex', 'auth.json'));
@@ -254,7 +276,7 @@ export async function detectRuntimes(refresh = false): Promise<RuntimeInfo[]> {
         if (!resolved) continue;
         const version = await probeVersion(env, resolved, def.versionArgs);
         if (version) {
-          const auth = await probeAuth(def.id);
+          const auth = await probeAuth(def.id, env, resolved);
           return {
             id: def.id,
             name: def.name,

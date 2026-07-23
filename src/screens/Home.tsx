@@ -52,6 +52,7 @@ export function Home(props: {
   const [designSystemId, setDesignSystemId] = useState('');
   const [mode, setMode] = useState<DesignMode>('design');
   const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState<string | null>(null);
   const [engineCheck, setEngineCheck] = useState<EngineCheck | null>(null);
   const [openPop, setOpenPop] = useState<'template' | 'agent' | 'mode' | null>(null);
   const [tplQuery, setTplQuery] = useState('');
@@ -111,8 +112,14 @@ export function Home(props: {
 
   const availableRuntimes = runtimes.filter((r) => r.available);
   const readyRuntimes = availableRuntimes.filter((r) => r.authenticated !== false);
+  // An explicit default only wins while it can actually run — a stored default
+  // that later reads "login required" falls back to a ready CLI.
+  const explicitRuntime = availableRuntimes.find((r) => r.id === settings?.defaultRuntimeId);
   const currentRuntime =
-    availableRuntimes.find((r) => r.id === settings?.defaultRuntimeId) ?? readyRuntimes[0] ?? availableRuntimes[0] ?? null;
+    (explicitRuntime && explicitRuntime.authenticated !== false ? explicitRuntime : undefined) ??
+    readyRuntimes[0] ??
+    availableRuntimes[0] ??
+    null;
 
   const modeMeta: Record<DesignMode, { label: string; effort: string }> = {
     ask: { label: 'Ask', effort: 'Light' },
@@ -138,12 +145,16 @@ export function Home(props: {
     if (creating) return;
     if (withPrompt && !prompt.trim()) return;
     setCreating(true);
+    setCreateErr(null);
     try {
       const skillId = activeTemplate?.skillId ?? 'web-prototype';
       const fidelity: Fidelity = mode === 'plan' ? 'wireframe' : activeTemplate?.fidelity ?? 'high';
       const name = withPrompt ? nameFromPrompt(prompt) : `${activeTemplate?.title ?? 'New'} design`;
       const meta = await vds().createProject({ name, skillId, designSystemId: designSystemId || null, fidelity });
       onOpenProject(meta.id, meta.name, withPrompt ? composedPrompt(prompt) : undefined);
+    } catch (err) {
+      // Never fail silently — a swallowed IPC rejection looks like a dead button.
+      setCreateErr(String((err as Error)?.message ?? err));
     } finally {
       setCreating(false);
     }
@@ -338,6 +349,7 @@ export function Home(props: {
             ⚠ {engineCheck.detail}
           </div>
         )}
+        {createErr && <div className="engine-warn">⚠ Could not create the project: {createErr}</div>}
 
         <div className="tpl-label">Start with a template…</div>
         <div className="tpl-row">
