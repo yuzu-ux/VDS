@@ -1,7 +1,7 @@
 // Shared contracts between the Electron main process ("the daemon") and the
 // renderer. Mirrors the split Open Design keeps in packages/contracts.
 
-export const APP_NAME = 'UIO';
+export const APP_NAME = 'VDS';
 export const APP_TAGLINE = 'UI, Open — your coding agents become the design engine.';
 
 // ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ export interface AppSettings {
 
   // Hosted fallback — the app owner's proxy. Non-secret config; the usage
   // token lives encrypted in secrets storage.
-  hostedEndpoint: string; // e.g. https://uio-proxy.example.com
+  hostedEndpoint: string; // e.g. https://vds-proxy.example.com
   hostedModel: string; // a model label the proxy maps to a real model server-side
 }
 
@@ -175,9 +175,9 @@ export interface EngineCheck {
 }
 
 // ---------------------------------------------------------------------------
-// The bridge exposed to the renderer as window.uio
+// The bridge exposed to the renderer as window.vds
 
-export interface UioBridge {
+export interface VdsBridge {
   listRuntimes(refresh?: boolean): Promise<RuntimeInfo[]>;
   listSkills(): Promise<SkillInfo[]>;
   listDesignSystems(): Promise<DesignSystemInfo[]>;

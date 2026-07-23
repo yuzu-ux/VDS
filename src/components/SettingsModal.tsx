@@ -8,7 +8,7 @@ import type {
   RuntimeInfo,
   SecretStatus,
 } from '../../shared/types';
-import { uio } from '../bridge';
+import { vds } from '../bridge';
 
 type NavKey = 'engine' | 'systems' | 'locations' | 'about';
 
@@ -23,7 +23,7 @@ const TITLES: Record<NavKey, { h: string; sub: string }> = {
   engine: { h: 'Execution mode', sub: 'Choose Local CLI, your API key, or hosted.' },
   systems: { h: 'Design systems', sub: 'Brand contracts your agent designs against.' },
   locations: { h: 'Project locations', sub: 'Where your projects live on disk.' },
-  about: { h: 'About', sub: 'UIO — open-source design studio.' },
+  about: { h: 'About', sub: 'VDS — Visual Design Studio, open-source & local-first.' },
 };
 
 const SOURCES: { id: EngineSource; label: string }[] = [
@@ -56,8 +56,8 @@ export function SettingsModal(props: {
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    void uio().getSecretStatus().then(setSecretStatus);
-    void uio().listDesignSystems().then(setSystems);
+    void vds().getSecretStatus().then(setSecretStatus);
+    void vds().listDesignSystems().then(setSystems);
   }, []);
 
   const flash = (m: string) => {
@@ -75,7 +75,7 @@ export function SettingsModal(props: {
   const runCheck = async () => {
     setChecking(true);
     try {
-      setCheck(await uio().checkEngine(source));
+      setCheck(await vds().checkEngine(source));
     } finally {
       setChecking(false);
     }
@@ -83,13 +83,13 @@ export function SettingsModal(props: {
 
   const saveKey = async () => {
     if (!byokKey.trim()) return;
-    setSecretStatus(await uio().setSecret('byokKey', byokKey.trim()));
+    setSecretStatus(await vds().setSecret('byokKey', byokKey.trim()));
     setByokKey('');
     flash('Key stored securely');
   };
   const saveToken = async () => {
     if (!hostedToken.trim()) return;
-    setSecretStatus(await uio().setSecret('hostedToken', hostedToken.trim()));
+    setSecretStatus(await vds().setSecret('hostedToken', hostedToken.trim()));
     setHostedToken('');
     flash('Token stored securely');
   };
@@ -167,7 +167,7 @@ export function SettingsModal(props: {
                         <div className="btn-inline">
                           <button className="btn primary small" onClick={() => void saveKey()} disabled={!byokKey.trim()}>Save</button>
                           {secretStatus?.byokKeyConfigured && (
-                            <button className="btn small" onClick={async () => { setSecretStatus(await uio().clearSecret('byokKey')); flash('Removed'); }}>Clear</button>
+                            <button className="btn small" onClick={async () => { setSecretStatus(await vds().clearSecret('byokKey')); flash('Removed'); }}>Clear</button>
                           )}
                         </div>
                       </div>
@@ -179,13 +179,13 @@ export function SettingsModal(props: {
                 {source === 'hosted' && (
                   <div className="engine-config" style={{ border: 'none', paddingTop: 0 }}>
                     <div className="hosted-explainer">
-                      No plan of your own? Point this at a UIO proxy running under the app owner's account. You send only a usage token —
+                      No plan of your own? Point this at a VDS proxy running under the app owner's account. You send only a usage token —
                       the real key stays on the server, and your projects, preview, and export stay on your Mac.
                     </div>
                     <div className="row2">
                       <div className="field" style={{ flex: 2 }}>
                         <label>Hosted endpoint</label>
-                        <input type="text" placeholder="https://uio-proxy.example.com" value={hostedEndpoint} onChange={(e) => setHostedEndpoint(e.target.value)} />
+                        <input type="text" placeholder="https://vds-proxy.example.com" value={hostedEndpoint} onChange={(e) => setHostedEndpoint(e.target.value)} />
                       </div>
                       <div className="field">
                         <label>Model label</label>
@@ -198,11 +198,11 @@ export function SettingsModal(props: {
                     <div className="field" style={{ marginTop: 16 }}>
                       <label>Usage token {secretStatus?.hostedTokenConfigured && <span className="badge ok">stored</span>}</label>
                       <div className="row2">
-                        <input type="password" placeholder={secretStatus?.hostedTokenConfigured ? '•••••••• (stored)' : 'uio_… from the app owner'} value={hostedToken} onChange={(e) => setHostedToken(e.target.value)} />
+                        <input type="password" placeholder={secretStatus?.hostedTokenConfigured ? '•••••••• (stored)' : 'vds_… from the app owner'} value={hostedToken} onChange={(e) => setHostedToken(e.target.value)} />
                         <div className="btn-inline">
                           <button className="btn primary small" onClick={() => void saveToken()} disabled={!hostedToken.trim()}>Save</button>
                           {secretStatus?.hostedTokenConfigured && (
-                            <button className="btn small" onClick={async () => { setSecretStatus(await uio().clearSecret('hostedToken')); flash('Removed'); }}>Clear</button>
+                            <button className="btn small" onClick={async () => { setSecretStatus(await vds().clearSecret('hostedToken')); flash('Removed'); }}>Clear</button>
                           )}
                         </div>
                       </div>
@@ -228,7 +228,7 @@ export function SettingsModal(props: {
                     </div>
                   </div>
                 ))}
-                <div className="hint-line">Add your own: drop a folder with a DESIGN.md into <code>~/UIO Library/design-systems/</code>.</div>
+                <div className="hint-line">Add your own: drop a folder with a DESIGN.md into <code>~/VDS Library/design-systems/</code>.</div>
               </div>
             )}
 
@@ -236,19 +236,19 @@ export function SettingsModal(props: {
               <div className="field">
                 <label>Projects folder</label>
                 <input type="text" value={settings.projectsRoot} readOnly />
-                <div className="hint-line">Each project is a plain folder here. Move the folder to relocate it; UIO follows.</div>
+                <div className="hint-line">Each project is a plain folder here. Move the folder to relocate it; VDS follows.</div>
               </div>
             )}
 
             {nav === 'about' && (
               <div>
                 <div className="cli-card">
-                  <div className="cli-name">UIO <span className="sub">v0.1 · Apache-2.0</span></div>
+                  <div className="cli-name">VDS <span className="sub">v0.1 · Apache-2.0</span></div>
                   <div className="cli-meta" style={{ fontFamily: 'var(--sans)', fontSize: 13 }}>
                     The open-source Claude Design alternative. Your coding agents become the design engine — local-first, macOS.
                   </div>
                   <div className="agent-actions" style={{ marginTop: 12 }}>
-                    <button className="btn small" onClick={() => void uio().openExternal('https://github.com/')}>GitHub</button>
+                    <button className="btn small" onClick={() => void vds().openExternal('https://github.com/yuzu-ux/VDS')}>GitHub</button>
                   </div>
                 </div>
               </div>

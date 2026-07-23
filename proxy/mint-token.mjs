@@ -13,7 +13,7 @@ if (!label) {
 }
 
 const tokens = existsSync(TOKENS_FILE) ? JSON.parse(readFileSync(TOKENS_FILE, 'utf8')) : {};
-const token = 'uio_' + randomBytes(24).toString('base64url');
+const token = 'vds_' + randomBytes(24).toString('base64url');
 tokens[token] = {
   label,
   monthlyLimitUsd: Number(limitArg || 5),
@@ -24,4 +24,4 @@ writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2));
 
 console.log(`Minted token for "${label}" — $${tokens[token].monthlyLimitUsd}/month${model ? ` (model: ${model})` : ''}`);
 console.log(`\n  ${token}\n`);
-console.log('Give this to the user. In UIO: Settings → Engine → Hosted → Usage token.');
+console.log('Give this to the user. In VDS: Settings → Engine → Hosted → Usage token.');

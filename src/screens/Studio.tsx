@@ -9,7 +9,7 @@ import type {
   SkillInfo,
   TranscriptEntry,
 } from '../../shared/types';
-import { uio } from '../bridge';
+import { vds } from '../bridge';
 import { ChatPane } from '../components/ChatPane';
 import { CanvasPane } from '../components/CanvasPane';
 
@@ -48,13 +48,13 @@ export function Studio(props: {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const meta = await uio().getProject(projectId);
+      const meta = await vds().getProject(projectId);
       if (!alive || !meta) return;
       setProject(meta);
       const [skills, systems, transcript] = await Promise.all([
-        uio().listSkills(),
-        uio().listDesignSystems(),
-        uio().getTranscript(projectId),
+        vds().listSkills(),
+        vds().listDesignSystems(),
+        vds().getTranscript(projectId),
       ]);
       if (!alive) return;
       setSkill(skills.find((s) => s.id === meta.skillId) ?? null);
@@ -71,7 +71,7 @@ export function Studio(props: {
   }, [settings]);
 
   const refreshFiles = useCallback(async () => {
-    const list = await uio().listFiles(projectId);
+    const list = await vds().listFiles(projectId);
     setFiles(list);
     setActiveFile((prev) => {
       if (prev && list.some((f) => f.path === prev)) return prev;
@@ -87,7 +87,7 @@ export function Studio(props: {
 
   // engine + file events
   useEffect(() => {
-    const offEngine = uio().onEngineEvent(({ projectId: pid, event }) => {
+    const offEngine = vds().onEngineEvent(({ projectId: pid, event }) => {
       if (pid !== projectId) return;
       setEntries((prev) => [...prev, { kind: 'event', event, at: Date.now() }]);
       if (event.type === 'status') {
@@ -100,7 +100,7 @@ export function Studio(props: {
       if (event.type === 'file') setRefreshTick((t) => t + 1);
     });
     const debounce = { timer: 0 as ReturnType<typeof setTimeout> | 0 };
-    const offFiles = uio().onFileChanged(({ projectId: pid }) => {
+    const offFiles = vds().onFileChanged(({ projectId: pid }) => {
       if (pid !== projectId) return;
       if (debounce.timer) clearTimeout(debounce.timer);
       debounce.timer = setTimeout(() => setRefreshTick((t) => t + 1), 250);
@@ -122,7 +122,7 @@ export function Studio(props: {
       const toSend = comments;
       setComments([]);
       try {
-        const { runId: id } = await uio().startTurn({
+        const { runId: id } = await vds().startTurn({
           projectId,
           prompt: text,
           runtimeId: activeRuntime?.id ?? 'claude', // ignored by provider sources
@@ -152,7 +152,7 @@ export function Studio(props: {
   }, [initialPrompt, project, canSend, send, onConsumedInitialPrompt]);
 
   const stop = useCallback(() => {
-    if (runId) void uio().cancelTurn(runId);
+    if (runId) void vds().cancelTurn(runId);
   }, [runId]);
 
   const addComment = useCallback((c: ElementComment) => {
@@ -200,7 +200,7 @@ export function Studio(props: {
             </select>
           </>
         )}
-        <button className="btn small" onClick={() => void uio().openInFinder(projectId)}>Reveal in Finder</button>
+        <button className="btn small" onClick={() => void vds().openInFinder(projectId)}>Reveal in Finder</button>
       </header>
 
       <div className="studio-body">

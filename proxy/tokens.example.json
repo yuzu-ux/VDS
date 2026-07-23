@@ -1,5 +1,5 @@
 {
-  "uio_EXAMPLE_replace_me_with_a_minted_token": {
+  "vds_EXAMPLE_replace_me_with_a_minted_token": {
     "label": "demo-user",
     "monthlyLimitUsd": 5,
     "model": "default",

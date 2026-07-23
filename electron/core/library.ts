@@ -1,5 +1,5 @@
 // Library loader: bundled skills + design systems, shadowable by user entries
-// in ~/UIO Library (same id wins), mirroring Open Design's two-root registry.
+// in ~/VDS Library (same id wins), mirroring Open Design's two-root registry.
 //
 // Formats are intentionally compatible with the Open Design ecosystem:
 //   skills/<id>/SKILL.md          — YAML-ish frontmatter + instructions
@@ -10,7 +10,7 @@ import * as os from 'node:os';
 import type { DesignSystemInfo, SkillInfo } from '../../shared/types';
 
 export function userLibraryRoot(): string {
-  return path.join(os.homedir(), 'UIO Library');
+  return path.join(os.homedir(), 'VDS Library');
 }
 
 interface Frontmatter {
@@ -139,18 +139,18 @@ export class Library {
 
   /**
    * Copy the chosen skill (and design system contract) into the project
-   * workspace under .uio/ so the agent can read everything with its own file
+   * workspace under .vds/ so the agent can read everything with its own file
    * tools — the filesystem is the interface, no long prompts needed.
    */
   async installIntoWorkspace(workspace: string, skillId: string, designSystemId: string | null): Promise<void> {
     const skill = await this.getSkill(skillId);
     if (!skill) throw new Error(`Unknown skill: ${skillId}`);
-    const target = path.join(workspace, '.uio', 'skill');
+    const target = path.join(workspace, '.vds', 'skill');
     await fs.rm(target, { recursive: true, force: true });
     await fs.cp(skill.dir, target, { recursive: true });
     if (designSystemId) {
       const contract = await this.readDesignSystemContract(designSystemId);
-      await fs.writeFile(path.join(workspace, '.uio', 'DESIGN.md'), contract);
+      await fs.writeFile(path.join(workspace, '.vds', 'DESIGN.md'), contract);
     }
   }
 }

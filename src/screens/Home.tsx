@@ -8,7 +8,7 @@ import type {
   RuntimeInfo,
   SkillInfo,
 } from '../../shared/types';
-import { uio } from '../bridge';
+import { vds } from '../bridge';
 
 interface TemplateDef {
   key: string;
@@ -42,7 +42,7 @@ export function Home(props: {
   const engineSource = settings?.engineSource ?? 'local-cli';
 
   const refresh = async () => {
-    const [sk, ds, pr] = await Promise.all([uio().listSkills(), uio().listDesignSystems(), uio().listProjects()]);
+    const [sk, ds, pr] = await Promise.all([vds().listSkills(), vds().listDesignSystems(), vds().listProjects()]);
     setSkills(sk);
     setSystems(ds);
     setProjects(pr);
@@ -51,7 +51,7 @@ export function Home(props: {
     void refresh();
   }, []);
   useEffect(() => {
-    void uio().checkEngine(engineSource).then(setEngineCheck);
+    void vds().checkEngine(engineSource).then(setEngineCheck);
   }, [engineSource]);
 
   const templates = useMemo<TemplateDef[]>(
@@ -82,7 +82,7 @@ export function Home(props: {
     setCreating(true);
     try {
       const name = withPrompt ? nameFromPrompt(prompt) : `${skills.find((s) => s.id === skillId)?.name ?? 'New'} design`;
-      const meta = await uio().createProject({
+      const meta = await vds().createProject({
         name,
         skillId,
         designSystemId: designSystemId || null,
@@ -97,7 +97,7 @@ export function Home(props: {
   const removeProject = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm('Move this project to the Trash?')) return;
-    await uio().deleteProject(id);
+    await vds().deleteProject(id);
     void refresh();
   };
 
@@ -111,7 +111,7 @@ export function Home(props: {
           <span className="brand-mark">
             <ClockMark />
           </span>
-          <span className="brand-word">UIO</span>
+          <span className="brand-word">VDS</span>
         </div>
         <h1 className="hero-h1">What will you design with your agent today?</h1>
         <p className="hero-sub">The open-source Claude Design alternative — local-first, macOS.</p>

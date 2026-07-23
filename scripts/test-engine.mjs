@@ -20,7 +20,7 @@ await build({
   logLevel: 'warning',
 });
 
-const workspaceRoot = process.env.SMOKE_ROOT || mkdtempSync(path.join(tmpdir(), 'uio-smoke-'));
+const workspaceRoot = process.env.SMOKE_ROOT || mkdtempSync(path.join(tmpdir(), 'vds-smoke-'));
 const runtimeId = process.argv[2] || 'claude';
 const child = spawn('node', [outfile, path.join(root, 'library'), workspaceRoot, runtimeId], {
   stdio: 'inherit',

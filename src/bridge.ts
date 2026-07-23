@@ -1,5 +1,5 @@
 // Typed access to the main-process bridge. In Electron, preload exposes
-// window.uio. In a plain browser (vite dev for UI work) we install a mock so
+// window.vds. In a plain browser (vite dev for UI work) we install a mock so
 // every screen renders and the chat flow can be exercised without Electron.
 import type {
   DesignSystemInfo,
@@ -8,19 +8,19 @@ import type {
   RuntimeInfo,
   SkillInfo,
   TranscriptEntry,
-  UioBridge,
+  VdsBridge,
 } from '../shared/types';
 
 declare global {
   interface Window {
-    uio?: UioBridge;
+    vds?: VdsBridge;
   }
 }
 
-export const isElectron = typeof window !== 'undefined' && !!window.uio;
+export const isElectron = typeof window !== 'undefined' && !!window.vds;
 
-export function uio(): UioBridge {
-  if (window.uio) return window.uio;
+export function vds(): VdsBridge {
+  if (window.vds) return window.vds;
   return mock;
 }
 
@@ -50,11 +50,11 @@ section{border-top:1px solid #ddd6c8;margin-top:64px;padding-top:48px}
 .card{background:#fffdf8;border:1px solid #ddd6c8;border-radius:12px;padding:24px}
 .card h3{margin:0 0 8px;font-size:16px}.card p{margin:0;font-size:14px;color:#6b665c}
 </style></head><body><div class="wrap">
-<div data-uio-id="hero"><div class="eyebrow">Demo mode</div>
+<div data-vds-id="hero"><div class="eyebrow">Demo mode</div>
 <h1>This is the browser mock preview.</h1>
 <p class="lede">Run the real app with <b>npm start</b> — your local coding agent will generate designs as real files, previewed here live.</p>
 <a class="btn" href="#">Primary action</a></div>
-<section data-uio-id="features"><div class="eyebrow">Features</div><div class="grid">
+<section data-vds-id="features"><div class="eyebrow">Features</div><div class="grid">
 <div class="card"><h3>Agent-native</h3><p>claude / codex on your PATH become the design engine.</p></div>
 <div class="card"><h3>Local-first</h3><p>Projects are plain folders. No cloud, no lock-in.</p></div>
 <div class="card"><h3>Open format</h3><p>SKILL.md and DESIGN.md, compatible with the ecosystem.</p></div>
@@ -69,7 +69,7 @@ const mem = {
   settings: {
     defaultRuntimeId: 'claude',
     defaultModel: null,
-    projectsRoot: '~/UIO Projects',
+    projectsRoot: '~/VDS Projects',
     engineSource: 'local-cli',
     byokProvider: 'anthropic',
     byokBaseUrl: 'https://api.anthropic.com',
@@ -85,7 +85,7 @@ function emit(envelope: EngineEventEnvelope) {
   mem.listeners.forEach((cb) => cb(envelope));
 }
 
-const mock: UioBridge = {
+const mock: VdsBridge = {
   async listRuntimes() {
     const infos: RuntimeInfo[] = [
       { id: 'claude', name: 'Claude Code', bin: 'claude', available: true, version: 'browser mock', resolvedPath: '/mock/claude', models: [{ id: 'default', label: 'Default model' }, { id: 'opus', label: 'Opus' }], supportsResume: true },

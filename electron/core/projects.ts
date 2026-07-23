@@ -1,5 +1,5 @@
 // Filesystem-as-API project store, matching Open Design's ethos: a project IS
-// a portable directory. No database — project.json + files + .uio/ metadata.
+// a portable directory. No database — project.json + files + .vds/ metadata.
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -8,7 +8,7 @@ import type { Fidelity, ProjectFile, ProjectMeta, TranscriptEntry } from '../../
 const PREVIEWABLE = new Set(['.html', '.htm', '.svg']);
 
 export function defaultProjectsRoot(): string {
-  return path.join(os.homedir(), 'UIO Projects');
+  return path.join(os.homedir(), 'VDS Projects');
 }
 
 function slugify(name: string): string {
@@ -93,7 +93,7 @@ export class ProjectStore {
       }
     }
     const dir = path.join(this.root, dirName);
-    await fs.mkdir(path.join(dir, '.uio'), { recursive: true });
+    await fs.mkdir(path.join(dir, '.vds'), { recursive: true });
     const meta: ProjectMeta = {
       id: dirName,
       name: input.name.trim() || 'Untitled design',
@@ -154,11 +154,11 @@ export class ProjectStore {
   // -- transcript ----------------------------------------------------------
 
   private transcriptPath(meta: ProjectMeta): string {
-    return path.join(meta.dir, '.uio', 'chat.jsonl');
+    return path.join(meta.dir, '.vds', 'chat.jsonl');
   }
 
   async appendTranscript(meta: ProjectMeta, entry: TranscriptEntry): Promise<void> {
-    await fs.mkdir(path.join(meta.dir, '.uio'), { recursive: true });
+    await fs.mkdir(path.join(meta.dir, '.vds'), { recursive: true });
     await fs.appendFile(this.transcriptPath(meta), JSON.stringify(entry) + '\n');
   }
 

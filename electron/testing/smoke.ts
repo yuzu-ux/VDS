@@ -91,9 +91,9 @@ async function main() {
   const entryPath = path.join(project.dir, 'index.html');
   try {
     const html = await fs.readFile(entryPath, 'utf8');
-    const hasIds = html.includes('data-uio-id');
+    const hasIds = html.includes('data-vds-id');
     const selfContained = !/https?:\/\/[^"' ]+\.(png|jpg|css|js|woff)/i.test(html);
-    console.log(`[verify] index.html: ${html.length} bytes · data-uio-id: ${hasIds} · self-contained: ${selfContained}`);
+    console.log(`[verify] index.html: ${html.length} bytes · data-vds-id: ${hasIds} · self-contained: ${selfContained}`);
     if (code === 0 && hasIds) {
       console.log('[smoke] PASS');
       process.exit(0);

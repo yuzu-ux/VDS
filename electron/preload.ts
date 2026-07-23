@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { EngineEventEnvelope, StartTurnRequest, UioBridge } from '../shared/types';
+import type { EngineEventEnvelope, StartTurnRequest, VdsBridge } from '../shared/types';
 
-const bridge: UioBridge = {
+const bridge: VdsBridge = {
   listRuntimes: (refresh) => ipcRenderer.invoke('runtimes:list', refresh),
   listSkills: () => ipcRenderer.invoke('library:skills'),
   listDesignSystems: () => ipcRenderer.invoke('library:design-systems'),
@@ -42,4 +42,4 @@ const bridge: UioBridge = {
   checkEngine: (source) => ipcRenderer.invoke('engine:check', source),
 };
 
-contextBridge.exposeInMainWorld('uio', bridge);
+contextBridge.exposeInMainWorld('vds', bridge);

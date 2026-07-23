@@ -1,8 +1,8 @@
-# UIO
+# VDS — Visual Design Studio
 
-**UI, Open — the open-source design studio where your coding agents become the design engine.**
+**Visual Design Studio — the open-source design studio where your coding agents become the design engine.**
 
-UIO is an open, local-first alternative to [Claude Design](https://claude.com/product/design), in the spirit of [Open Design](https://github.com/nexu-io/open-design). Describe what you want; the coding-agent CLI already on your Mac (`claude`, `codex`, …) designs it as **real files in a plain folder** — previewed live, iterated in chat, exported to HTML or PDF.
+VDS is an open, local-first alternative to [Claude Design](https://claude.com/product/design), in the spirit of [Open Design](https://github.com/nexu-io/open-design). Describe what you want; the coding-agent CLI already on your Mac (`claude`, `codex`, …) designs it as **real files in a plain folder** — previewed live, iterated in chat, exported to HTML or PDF.
 
 > **Status: v0.1 — macOS only, by design.** Small, readable, and meant for the coding & UI communities to build on.
 
@@ -19,8 +19,8 @@ Claude Design went viral — and stayed closed-source, cloud-only, subscription-
 | Source | What runs where | For whom |
 |---|---|---|
 | **Local CLI** *(default)* | An agent CLI (`claude`, `codex`, …) on your Mac writes the files. 100% local. | You have an agent CLI / a plan. |
-| **Your API key** | UIO calls Anthropic or an OpenAI-compatible API directly with *your* key. Local except the model call; the key is encrypted in your Keychain. | You have an API key but no CLI. |
-| **Hosted** | UIO calls a small proxy the app owner runs; a per-user **usage token** meters you against the owner's account. Only the model call leaves your Mac. | **You have no plan at all** — design on the owner's subscription. |
+| **Your API key** | VDS calls Anthropic or an OpenAI-compatible API directly with *your* key. Local except the model call; the key is encrypted in your Keychain. | You have an API key but no CLI. |
+| **Hosted** | VDS calls a small proxy the app owner runs; a per-user **usage token** meters you against the owner's account. Only the model call leaves your Mac. | **You have no plan at all** — design on the owner's subscription. |
 
 The hosted option is the answer to *"if they don't have a Claude plan, they can use my app subscription to design."* You deploy [`proxy/`](proxy/README.md) once (backed by a commercial API key), mint each user a token, and they paste it into Settings. Projects, preview, comments, and export stay entirely on the user's machine — the token is the only thing that ever leaves.
 
@@ -29,7 +29,7 @@ The hosted option is the answer to *"if they don't have a Claude plan, they can 
 | Capability | Status |
 |---|---|
 | Web prototype + slide deck skills (seed-based, self-contained HTML) | ✅ |
-| Design systems (3 bundled; drop your own in `~/UIO Library/design-systems/`) | ✅ |
+| Design systems (3 bundled; drop your own in `~/VDS Library/design-systems/`) | ✅ |
 | Claude Code engine with session resume, streamed TODOs and tool activity | ✅ |
 | Codex CLI engine (JSONL events) | ✅ |
 | cursor-agent · gemini · opencode · qwen | ⚠️ experimental, raw-stream |
@@ -66,7 +66,7 @@ npm run dev:web       # renderer alone in a browser, with a mock engine
 ┌────────────────────────── Electron renderer (React) ──────────────────────────┐
 │  Home: create card · designs grid · design systems      Studio: chat ⇄ canvas │
 └──────────────────────────────┬────────────────────────────────────────────────┘
-                               │ typed IPC (window.uio)
+                               │ typed IPC (window.vds)
 ┌──────────────────────────────▼────────────────────────────────────────────────┐
 │  Main process — the "daemon": project store · library registry · runtime      │
 │  detection · prompt composer · run engine · exporter                          │
@@ -74,17 +74,17 @@ npm run dev:web       # renderer alone in a browser, with a mock engine
                                │ spawn, cwd = project workspace
                     claude / codex / … CLI
                                │ stream-json events + real file writes
-                    ~/UIO Projects/<name>/  ← watched, previewed, exported
+                    ~/VDS Projects/<name>/  ← watched, previewed, exported
 ```
 
-Each turn, UIO composes a prompt from the project's **skill** (`.uio/skill/SKILL.md`, with seed HTML assets), the active **design system** (`.uio/DESIGN.md`), fidelity, and your message — then spawns the chosen CLI inside the project workspace. The agent reads the skill with its own file tools, writes the deliverable (`index.html` / `deck.html`), and the preview follows the file. Claude Code sessions are resumed across turns (`--resume`), so the agent keeps its working memory; for engines without resume, the workspace files *are* the memory.
+Each turn, VDS composes a prompt from the project's **skill** (`.vds/skill/SKILL.md`, with seed HTML assets), the active **design system** (`.vds/DESIGN.md`), fidelity, and your message — then spawns the chosen CLI inside the project workspace. The agent reads the skill with its own file tools, writes the deliverable (`index.html` / `deck.html`), and the preview follows the file. Claude Code sessions are resumed across turns (`--resume`), so the agent keeps its working memory; for engines without resume, the workspace files *are* the memory.
 
 Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Extend it
 
-- **Design system**: folder with a `DESIGN.md` (frontmatter: `name`, `description`, `swatches`, `font`) in `~/UIO Library/design-systems/`. Same id shadows a bundled one.
-- **Skill**: folder with `SKILL.md` (frontmatter: `name`, `description`, `mode: prototype|deck`, `entry`) plus `assets/` seeds in `~/UIO Library/skills/`.
+- **Design system**: folder with a `DESIGN.md` (frontmatter: `name`, `description`, `swatches`, `font`) in `~/VDS Library/design-systems/`. Same id shadows a bundled one.
+- **Skill**: folder with `SKILL.md` (frontmatter: `name`, `description`, `mode: prototype|deck`, `entry`) plus `assets/` seeds in `~/VDS Library/skills/`.
 - **Engine**: add a `RuntimeDef` in [electron/core/runtimes.ts](electron/core/runtimes.ts) — launch args, prompt delivery, stream format. Parsers live in [electron/core/engine.ts](electron/core/engine.ts).
 
 ## Roadmap
@@ -97,4 +97,4 @@ Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 
-[Apache-2.0](LICENSE). UIO is an independent project, not affiliated with Anthropic or the Open Design project; it interoperates with Open Design's open content formats and gratefully credits both for the interaction model.
+[Apache-2.0](LICENSE). VDS is an independent project, not affiliated with Anthropic or the Open Design project; it interoperates with Open Design's open content formats and gratefully credits both for the interaction model.

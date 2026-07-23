@@ -19,15 +19,15 @@ function assert(cond: unknown, msg: string) {
 }
 
 // --- unit: artifact extraction in all three forms ---
-const tagForm = extractArtifact('Prose.\n<artifact type="text/html" title="x"><!doctype html><html><body><section data-uio-id="a">Hi</section></body></html></artifact>');
-assert(tagForm && tagForm.content.includes('data-uio-id') && tagForm.prose === 'Prose.', 'extract <artifact> tag form');
+const tagForm = extractArtifact('Prose.\n<artifact type="text/html" title="x"><!doctype html><html><body><section data-vds-id="a">Hi</section></body></html></artifact>');
+assert(tagForm && tagForm.content.includes('data-vds-id') && tagForm.prose === 'Prose.', 'extract <artifact> tag form');
 const fenceForm = extractArtifact('Here:\n```html\n<!doctype html><html><body>Y</body></html>\n```');
 assert(fenceForm && fenceForm.content.includes('<!doctype html>'), 'extract ```html fence form');
 const rawForm = extractArtifact('sure\n<!doctype html><html><head></head><body>Z</body></html>\ndone');
 assert(rawForm && rawForm.extension === '.html' && rawForm.content.includes('body>Z'), 'extract raw html form');
 
 // --- fake Anthropic streaming server ---
-const HTML = '<!doctype html><html><head><title>Bean There</title></head><body><section data-uio-id="hero"><h1>Bean There</h1></section></body></html>';
+const HTML = '<!doctype html><html><head><title>Bean There</title></head><body><section data-vds-id="hero"><h1>Bean There</h1></section></body></html>';
 const CHUNKS = [
   'Direction: editorial paper + ink — fits a specialty coffee cart.\n\n',
   '<artifact identifier="index" type="text/html" title="Bean There">\n',
@@ -61,7 +61,7 @@ const server = createServer((req, res) => {
 
 server.listen(0, async () => {
   const port = (server.address() as any).port;
-  const workspace = mkdtempSync(path.join(tmpdir(), 'uio-prov-'));
+  const workspace = mkdtempSync(path.join(tmpdir(), 'vds-prov-'));
   const events: EngineEvent[] = [];
 
   const done = new Promise<number | null>((resolve) => {

@@ -1,10 +1,10 @@
 {
-  "name": "uio",
-  "productName": "UIO",
+  "name": "vds",
+  "productName": "VDS",
   "version": "0.1.0",
-  "description": "UIO — the open-source design studio. Your coding agents become the design engine. An open alternative to Claude Design, macOS-first.",
+  "description": "VDS (Visual Design Studio) — the open-source design studio. Your coding agents become the design engine. An open alternative to Claude Design, macOS-first.",
   "license": "Apache-2.0",
-  "author": "UIO contributors",
+  "author": "VDS contributors",
   "main": "dist-electron/main.cjs",
   "private": true,
   "scripts": {
@@ -36,8 +36,8 @@
     "react-dom": "^18.3.1"
   },
   "build": {
-    "appId": "dev.uio.app",
-    "productName": "UIO",
+    "appId": "dev.vds.app",
+    "productName": "VDS",
     "files": [
       "dist/**",
       "dist-electron/**",

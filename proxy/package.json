@@ -1,8 +1,8 @@
 {
-  "name": "uio-proxy",
+  "name": "vds-proxy",
   "version": "0.1.0",
   "private": true,
-  "description": "UIO hosted proxy — lets users without their own plan design on the app owner's provider account, metered by per-user usage tokens. Zero dependencies.",
+  "description": "VDS hosted proxy — lets users without their own plan design on the app owner's provider account, metered by per-user usage tokens. Zero dependencies.",
   "type": "module",
   "license": "Apache-2.0",
   "engines": { "node": ">=20" },

@@ -1,9 +1,9 @@
-# UIO Architecture
+# VDS Architecture
 
-UIO copies the proven topology of Claude Design / Open Design, collapsed into
+VDS copies the proven topology of Claude Design / Open Design, collapsed into
 the smallest honest shape for a macOS-only first iteration. Where Open Design
 runs a Next.js web app + Express daemon + Electron shell as three processes,
-UIO runs two: an Electron **main process that plays the daemon role**, and a
+VDS runs two: an Electron **main process that plays the daemon role**, and a
 React renderer. Every boundary is kept so the daemon can be split out later
 without rewrites.
 
@@ -11,33 +11,33 @@ without rewrites.
 
 ```
 Electron renderer (React 18 + Vite)
-    │  typed IPC — the UioBridge contract in shared/types.ts
+    │  typed IPC — the VdsBridge contract in shared/types.ts
 Electron main (the "daemon")
     │  spawn per turn, cwd = project workspace
 Agent CLI (claude / codex / …)
     │  JSONL stream on stdout · file writes in the workspace
-Filesystem (~/UIO Projects, ~/UIO Library)
+Filesystem (~/VDS Projects, ~/VDS Library)
 ```
 
 - `shared/types.ts` is the single contract file (DTOs, engine events, bridge
   interface) — the equivalent of Open Design's `packages/contracts`.
-- `electron/preload.ts` exposes the bridge as `window.uio` under context
+- `electron/preload.ts` exposes the bridge as `window.vds` under context
   isolation. `src/bridge.ts` falls back to an in-browser mock so the renderer
   can be developed and demoed without Electron (`npm run dev:web`).
 
 ## 2. Generation data flow (filesystem execution profile)
 
 1. Renderer calls `startTurn({projectId, prompt, runtimeId, model, comments})`.
-2. Main resolves project → skill → design system, refreshes `.uio/skill/` and
-   `.uio/DESIGN.md` copies in the workspace, and composes the turn prompt
+2. Main resolves project → skill → design system, refreshes `.vds/skill/` and
+   `.vds/DESIGN.md` copies in the workspace, and composes the turn prompt
    (`electron/core/prompt.ts`): core contract + skill pointer + design-system
    pointer + fidelity clause + first-turn/follow-up clause + request + pinned
    element comments.
 3. `electron/core/engine.ts` spawns the runtime def's argv inside the
    workspace (prompt over stdin), parses its stream into normalized
    `EngineEvent`s, and main forwards them over IPC while appending them to the
-   project transcript (`.uio/chat.jsonl`).
-4. The agent reads `.uio/skill/SKILL.md` + seed assets with its own file
+   project transcript (`.vds/chat.jsonl`).
+4. The agent reads `.vds/skill/SKILL.md` + seed assets with its own file
    tools and writes the deliverable (`index.html` / `deck.html`) in the
    workspace root.
 5. `fs.watch` (recursive, FSEvents) emits file-change IPC; the renderer
@@ -105,7 +105,7 @@ Implemented parsers (`engine.ts`):
 
 - **Bundled**: `library/skills/*`, `library/design-systems/*` (shipped in the
   app bundle; `library/` is packaged by electron-builder).
-- **User**: `~/UIO Library/{skills,design-systems}` — scanned second, so a
+- **User**: `~/VDS Library/{skills,design-systems}` — scanned second, so a
   user entry with the same id shadows a bundled one (Open Design's shadowing
   rule).
 - `SKILL.md` frontmatter: `name`, `description`, `mode: prototype|deck`,
@@ -115,8 +115,8 @@ Implemented parsers (`engine.ts`):
 
 ## 5. Projects (`electron/core/projects.ts`)
 
-`~/UIO Projects/<slug>/` with `project.json` (id, skill, design system,
-fidelity, per-runtime session ids), the deliverable files, and `.uio/`
+`~/VDS Projects/<slug>/` with `project.json` (id, skill, design system,
+fidelity, per-runtime session ids), the deliverable files, and `.vds/`
 (installed skill copy, `DESIGN.md`, `chat.jsonl` transcript). No database.
 Deleting a project moves the folder to the macOS Trash. All file reads resolve
 against the workspace root and refuse path traversal.
@@ -125,9 +125,9 @@ against the workspace root and refuse path traversal.
 
 Previews render in `<iframe sandbox="allow-scripts" srcDoc=…>` — no
 same-origin access, so generated code can't touch the app. A small bridge
-script is injected before `</body>`: the host posts `uio-comment-mode`
+script is injected before `</body>`: the host posts `vds-comment-mode`
 toggles; element clicks post back `{selector, label, x, y}` where the selector
-prefers the nearest `data-uio-id` ancestor (the skills mandate those
+prefers the nearest `data-vds-id` ancestor (the skills mandate those
 attributes). The host validates `event.source` against the frame before
 trusting a message, then shows the pin-note popover; pinned comments travel
 with the next turn as a structured block in the prompt.
@@ -149,7 +149,7 @@ with the next turn as a structured block in the prompt.
 - Agent runs: full tool access *inside the workspace cwd* — that's the
   product's contract with you. Review agents' output like you'd review a
   collaborator's.
-- No telemetry, no network calls of UIO's own. Engines talk to their own
+- No telemetry, no network calls of VDS's own. Engines talk to their own
   providers under their own auth.
 
 ## 9. Source map

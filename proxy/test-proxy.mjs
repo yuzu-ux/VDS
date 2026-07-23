@@ -30,11 +30,11 @@ async function main() {
   await new Promise((r) => upstream.listen(0, r));
   const upstreamPort = upstream.address().port;
 
-  const dir = mkdtempSync(path.join(tmpdir(), 'uio-proxy-test-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'vds-proxy-test-'));
   const tokensFile = path.join(dir, 'tokens.json');
   const usageFile = path.join(dir, 'usage.json');
-  const GOOD = 'uio_good_token';
-  const OVER = 'uio_over_token';
+  const GOOD = 'vds_good_token';
+  const OVER = 'vds_over_token';
   writeFileSync(tokensFile, JSON.stringify({
     [GOOD]: { label: 'good', monthlyLimitUsd: 100 },
     [OVER]: { label: 'over', monthlyLimitUsd: 1 },

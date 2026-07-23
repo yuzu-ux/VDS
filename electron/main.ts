@@ -1,4 +1,4 @@
-// UIO main process — plays the role Open Design gives its local daemon:
+// VDS main process — plays the role Open Design gives its local daemon:
 // project persistence, library registries, runtime detection, run lifecycle,
 // and export. The renderer talks to it over typed IPC (see preload.ts).
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
@@ -71,7 +71,7 @@ function ensureWatcher(meta: ProjectMeta) {
     const watcher = watch(meta.dir, { recursive: true }, (_event, filename) => {
       if (!filename || !mainWindow) return;
       const rel = String(filename);
-      if (rel.startsWith('.uio') || rel === 'project.json' || rel.startsWith('.')) return;
+      if (rel.startsWith('.vds') || rel === 'project.json' || rel.startsWith('.')) return;
       mainWindow.webContents.send('file:changed', { projectId: meta.id, path: rel });
     });
     watchers.set(meta.id, watcher);
@@ -281,7 +281,7 @@ async function checkEngine(source: EngineSource): Promise<EngineCheck> {
 }
 
 // ---------------------------------------------------------------------------
-// IPC surface (mirrors shared/types.ts UioBridge)
+// IPC surface (mirrors shared/types.ts VdsBridge)
 
 function registerIpc() {
   ipcMain.handle('runtimes:list', (_e, refresh?: boolean) => detectRuntimes(!!refresh));
@@ -372,7 +372,7 @@ async function createWindow() {
     height: 940,
     minWidth: 1040,
     minHeight: 640,
-    title: 'UIO',
+    title: 'VDS',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 15 },
     backgroundColor: '#100e0d',

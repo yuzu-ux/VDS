@@ -127,7 +127,7 @@ export const RUNTIME_DEFS: RuntimeDef[] = [
 // Login-shell PATH. GUI apps launched from Finder inherit a minimal PATH that
 // misses ~/.local/bin, homebrew, nvm, etc. Resolve the user's real PATH once.
 //
-// The env is also scrubbed of agent-session markers: if UIO (or its smoke
+// The env is also scrubbed of agent-session markers: if VDS (or its smoke
 // test) is itself launched from inside a coding-agent session, inherited vars
 // like CLAUDECODE / CLAUDE_CODE_* make the spawned CLI think it is a nested
 // session with host-managed auth and it reports "not logged in" instead of

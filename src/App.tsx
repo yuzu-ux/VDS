@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppSettings, RuntimeInfo } from '../shared/types';
-import { uio } from './bridge';
+import { vds } from './bridge';
 import { Home } from './screens/Home';
 import { Studio } from './screens/Studio';
 import { SettingsModal } from './components/SettingsModal';
@@ -16,12 +16,12 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   const refreshRuntimes = useCallback(async (force = false) => {
-    setRuntimes(await uio().listRuntimes(force));
+    setRuntimes(await vds().listRuntimes(force));
   }, []);
 
   useEffect(() => {
     void refreshRuntimes();
-    void uio().getSettings().then(setSettings);
+    void vds().getSettings().then(setSettings);
   }, [refreshRuntimes]);
 
   const openProject = useCallback((id: string, name: string, prompt?: string) => {
@@ -76,7 +76,7 @@ export function App() {
           onClose={() => setShowSettings(false)}
           onRefreshRuntimes={() => refreshRuntimes(true)}
           onSaveSettings={async (patch) => {
-            const next = await uio().setSettings(patch);
+            const next = await vds().setSettings(patch);
             setSettings(next);
             return next;
           }}

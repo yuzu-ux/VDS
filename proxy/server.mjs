@@ -1,4 +1,4 @@
-// UIO hosted proxy — the ONLY server-side component of UIO.
+// VDS hosted proxy — the ONLY server-side component of VDS.
 //
 // It lets people who have no Claude plan of their own design through the app
 // owner's provider account. The real provider API key lives here, never on the
@@ -42,7 +42,7 @@ const PRICE = {
 const FALLBACK_PRICE = { in: 3, out: 15 };
 
 if (!API_KEY) {
-  console.error('[uio-proxy] ANTHROPIC_API_KEY is required'); process.exit(1);
+  console.error('[vds-proxy] ANTHROPIC_API_KEY is required'); process.exit(1);
 }
 
 function loadJson(file, fallback) {
@@ -61,7 +61,7 @@ function recordSpend(token, usd) {
     usage[token][m].usd += usd;
     usage[token][m].calls += 1;
     writeFileSync(USAGE_FILE, JSON.stringify(usage, null, 2));
-  }).catch((e) => console.error('[uio-proxy] usage write failed', e));
+  }).catch((e) => console.error('[vds-proxy] usage write failed', e));
   return usageLock;
 }
 function spentThisMonth(token) {
@@ -97,7 +97,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    return json(res, 200, { ok: true, service: 'uio-proxy', models: Object.keys(MODEL_MAP) });
+    return json(res, 200, { ok: true, service: 'vds-proxy', models: Object.keys(MODEL_MAP) });
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/design/stream') {
@@ -193,10 +193,10 @@ async function handleDesignStream(req, res) {
   const price = PRICE[realModel] || FALLBACK_PRICE;
   const usd = (inputTokens / 1e6) * price.in + (outputTokens / 1e6) * price.out;
   await recordSpend(token, usd);
-  console.log(`[uio-proxy] token=${token.slice(0, 8)}… model=${realModel} in=${inputTokens} out=${outputTokens} $${usd.toFixed(4)} (month $${(spent + usd).toFixed(2)}/${limit || '∞'})`);
+  console.log(`[vds-proxy] token=${token.slice(0, 8)}… model=${realModel} in=${inputTokens} out=${outputTokens} $${usd.toFixed(4)} (month $${(spent + usd).toFixed(2)}/${limit || '∞'})`);
 }
 
 server.listen(PORT, () => {
-  if (!existsSync(TOKENS_FILE)) console.warn(`[uio-proxy] no tokens file at ${TOKENS_FILE} — run: node mint-token.mjs "name" <monthlyUsd>`);
-  console.log(`[uio-proxy] listening on :${PORT} → ${UPSTREAM_BASE} · models: ${Object.keys(MODEL_MAP).join(', ')}`);
+  if (!existsSync(TOKENS_FILE)) console.warn(`[vds-proxy] no tokens file at ${TOKENS_FILE} — run: node mint-token.mjs "name" <monthlyUsd>`);
+  console.log(`[vds-proxy] listening on :${PORT} → ${UPSTREAM_BASE} · models: ${Object.keys(MODEL_MAP).join(', ')}`);
 });

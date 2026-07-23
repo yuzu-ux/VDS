@@ -1,4 +1,4 @@
-# Contributing to UIO
+# Contributing to VDS
 
 Thanks for helping build the open design studio. The codebase is intentionally
 small — read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first (10 minutes),

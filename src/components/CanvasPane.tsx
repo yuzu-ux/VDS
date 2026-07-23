@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ElementComment, ProjectFile } from '../../shared/types';
-import { uio } from '../bridge';
+import { vds } from '../bridge';
 
 const FRAME_W = 1280;
 
@@ -8,22 +8,22 @@ const FRAME_W = 1280;
 const BRIDGE = `<script>(function(){
   var on = false;
   window.addEventListener('message', function(e){
-    if (e.data && e.data.type === 'uio-comment-mode') {
+    if (e.data && e.data.type === 'vds-comment-mode') {
       on = !!e.data.on;
-      document.documentElement.classList.toggle('uio-commenting', on);
+      document.documentElement.classList.toggle('vds-commenting', on);
     }
   });
   var style = document.createElement('style');
-  style.textContent = '.uio-commenting [data-uio-id]:hover{outline:2px solid #c15f3c;outline-offset:2px;cursor:crosshair}.uio-commenting *{cursor:crosshair!important}';
+  style.textContent = '.vds-commenting [data-vds-id]:hover{outline:2px solid #c15f3c;outline-offset:2px;cursor:crosshair}.vds-commenting *{cursor:crosshair!important}';
   document.head.appendChild(style);
   document.addEventListener('click', function(e){
     if (!on) return;
     e.preventDefault(); e.stopPropagation();
     var el = e.target;
-    var target = el && el.closest ? el.closest('[data-uio-id]') : null;
-    var selector = target ? '[data-uio-id="' + target.getAttribute('data-uio-id') + '"]' : (el && el.tagName ? el.tagName.toLowerCase() : 'body');
+    var target = el && el.closest ? el.closest('[data-vds-id]') : null;
+    var selector = target ? '[data-vds-id="' + target.getAttribute('data-vds-id') + '"]' : (el && el.tagName ? el.tagName.toLowerCase() : 'body');
     var label = ((el && el.textContent) || '').trim().slice(0, 48);
-    parent.postMessage({ type: 'uio-comment-click', selector: selector, label: label, x: e.clientX, y: e.clientY }, '*');
+    parent.postMessage({ type: 'vds-comment-click', selector: selector, label: label, x: e.clientX, y: e.clientY }, '*');
   }, true);
 })();</script>`;
 
@@ -71,7 +71,7 @@ export function CanvasPane(props: {
     }
     let alive = true;
     const t = setTimeout(() => {
-      void uio()
+      void vds()
         .readFile(projectId, activeFile)
         .then((text) => alive && setContent(text))
         .catch(() => alive && setContent(''));
@@ -97,7 +97,7 @@ export function CanvasPane(props: {
 
   // comment mode → tell the iframe
   const pushCommentMode = useCallback(() => {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'uio-comment-mode', on: commentMode }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'vds-comment-mode', on: commentMode }, '*');
   }, [commentMode]);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export function CanvasPane(props: {
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== iframeRef.current?.contentWindow) return;
-      if (!e.data || e.data.type !== 'uio-comment-click') return;
+      if (!e.data || e.data.type !== 'vds-comment-click') return;
       const viewport = viewportRef.current;
       const iframe = iframeRef.current;
       if (!viewport || !iframe) return;
@@ -140,7 +140,7 @@ export function CanvasPane(props: {
     if (!activeFile || exporting) return;
     setExporting(kind);
     try {
-      const res = kind === 'html' ? await uio().exportHtml(projectId, activeFile) : await uio().exportPdf(projectId, activeFile);
+      const res = kind === 'html' ? await vds().exportHtml(projectId, activeFile) : await vds().exportPdf(projectId, activeFile);
       void res;
     } finally {
       setExporting(null);

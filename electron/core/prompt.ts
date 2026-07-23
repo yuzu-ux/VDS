@@ -1,6 +1,6 @@
 // Prompt composition, the equivalent of Open Design's daemon-side composer:
 // core contract + skill + design system + fidelity + project state + request.
-// Big resources stay on disk (.uio/skill, .uio/DESIGN.md) and are referenced,
+// Big resources stay on disk (.vds/skill, .vds/DESIGN.md) and are referenced,
 // because every supported runtime is a coding agent with file tools.
 import type { ElementComment, Fidelity, ProjectMeta, SkillInfo } from '../../shared/types';
 
@@ -16,18 +16,18 @@ export function composeTurnPrompt(opts: {
   const parts: string[] = [];
 
   parts.push(
-    `# UIO design run
+    `# VDS design run
 
-You are the design engine inside UIO, an open-source design studio. Your working directory is the project workspace — create and edit files here only.
+You are the design engine inside VDS, an open-source design studio. Your working directory is the project workspace — create and edit files here only.
 
 ## Skill
-Read \`.uio/skill/SKILL.md\` now and follow it exactly. Its \`assets/\` and \`references/\` live next to it inside \`.uio/skill/\`. The canonical deliverable is \`${skill.entry}\` in the workspace root.`,
+Read \`.vds/skill/SKILL.md\` now and follow it exactly. Its \`assets/\` and \`references/\` live next to it inside \`.vds/skill/\`. The canonical deliverable is \`${skill.entry}\` in the workspace root.`,
   );
 
   parts.push(
     hasDesignSystem
       ? `## Design system
-The active brand contract is \`.uio/DESIGN.md\`. Read it and obey its tokens — colors, typography, spacing, and rules — over any conflicting default in the skill.`
+The active brand contract is \`.vds/DESIGN.md\`. Read it and obey its tokens — colors, typography, spacing, and rules — over any conflicting default in the skill.`
       : `## Design system
 None — freeform. Choose one tasteful, coherent direction yourself and hold it consistently.`,
   );
@@ -48,7 +48,7 @@ The workspace already contains the current design. Read \`${skill.entry}\` befor
 
   parts.push(
     `## Output contract
-Write real files. End with one short summary of what you built or changed. Never print file contents into chat. Keep \`${skill.entry}\` fully self-contained (inline CSS/JS, no external URLs; use placeholder blocks for imagery). Put \`data-uio-id\` attributes on top-level sections so elements can be targeted by comments.`,
+Write real files. End with one short summary of what you built or changed. Never print file contents into chat. Keep \`${skill.entry}\` fully self-contained (inline CSS/JS, no external URLs; use placeholder blocks for imagery). Put \`data-vds-id\` attributes on top-level sections so elements can be targeted by comments.`,
   );
 
   const commentBlock = renderComments(comments);
@@ -91,13 +91,13 @@ export function composeProviderPrompt(opts: {
   const kind = skill.mode === 'deck' ? 'slide deck' : 'web page';
 
   const system = [
-    `You are the design engine inside UIO, an open-source design studio. You produce one polished, self-contained ${kind} as a single HTML document.`,
+    `You are the design engine inside VDS, an open-source design studio. You produce one polished, self-contained ${kind} as a single HTML document.`,
     fidelityClause(fidelity).replace(/^## Fidelity\n/, 'Fidelity — '),
     `Craft rules:
 - Compose from the provided seed; keep its token system and class names. Map the design system's colors onto the seed's :root variables.
 - ${skill.mode === 'deck' ? 'One <section class="slide"> per slide; keep the seed navigation and print CSS.' : 'Real information architecture and real copy from the brief — no lorem ipsum, no [placeholder] strings.'}
 - Fully self-contained: inline all CSS/JS, no external URLs, no web fonts, no remote images (use the seed's placeholder blocks).
-- Put data-uio-id on every top-level ${skill.mode === 'deck' ? 'slide' : 'section'} so elements can be targeted by comments.
+- Put data-vds-id on every top-level ${skill.mode === 'deck' ? 'slide' : 'section'} so elements can be targeted by comments.
 - Single accent color, used sparingly.`,
     `OUTPUT CONTRACT — obey exactly:
 Return your final document as ONE block:

@@ -1,4 +1,4 @@
-import { uio } from '../bridge';
+import { vds } from '../bridge';
 
 // The macOS-style top chrome: Home tab + the open project's tab, a new-tab
 // button, and a right cluster (repo star + settings). The whole bar is the
@@ -36,8 +36,8 @@ export function TabBar(props: {
       <div className="bar-right">
         <button
           className="star-link"
-          title="UIO on GitHub"
-          onClick={() => void uio().openExternal('https://github.com/')}
+          title="VDS on GitHub"
+          onClick={() => void vds().openExternal('https://github.com/yuzu-ux/VDS')}
         >
           <GhIcon />
           <span>Star</span>

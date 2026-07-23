@@ -1,12 +1,12 @@
-# UIO Hosted Proxy
+# VDS Hosted Proxy
 
-The one server-side piece of UIO. Run this if you want people **without their
+The one server-side piece of VDS. Run this if you want people **without their
 own Claude/agent plan** to design using *your* provider account — they install
-UIO, choose **Engine → Hosted**, paste a usage token you give them, and go.
-Everything else in UIO stays on their Mac; only the model call leaves it.
+VDS, choose **Engine → Hosted**, paste a usage token you give them, and go.
+Everything else in VDS stays on their Mac; only the model call leaves it.
 
 ```
-UIO app (user)  ──Bearer usageToken──▶  this proxy  ──x-api-key──▶  Anthropic
+VDS app (user)  ──Bearer usageToken──▶  this proxy  ──x-api-key──▶  Anthropic
    no API key                       your API key here          real model
 ```
 
@@ -37,8 +37,8 @@ node mint-token.mjs "alice" 5              # $5/month token for Alice
 npm start                                  # listens on :8787
 ```
 
-`mint-token.mjs` prints a `uio_…` token — hand that to the user along with your
-endpoint URL. In UIO: **Settings → Engine → Hosted**, set the endpoint and paste
+`mint-token.mjs` prints a `vds_…` token — hand that to the user along with your
+endpoint URL. In VDS: **Settings → Engine → Hosted**, set the endpoint and paste
 the token.
 
 ## Configuration (env)
@@ -63,7 +63,7 @@ Default model map: `{ "default": "claude-sonnet-4-5", "fast": "claude-haiku-4-5"
 
 ```json
 {
-  "uio_abc123…": { "label": "alice", "monthlyLimitUsd": 5, "model": "default", "disabled": false }
+  "vds_abc123…": { "label": "alice", "monthlyLimitUsd": 5, "model": "default", "disabled": false }
 }
 ```
 
@@ -73,14 +73,14 @@ token usage × a price table) and is for quota control, not exact billing.
 
 ## Endpoints
 
-- `GET /health` → `{ ok: true, models: [...] }` (UIO's "Test engine" pings this).
+- `GET /health` → `{ ok: true, models: [...] }` (VDS's "Test engine" pings this).
 - `POST /v1/design/stream` → Bearer-authed; relays the provider's SSE stream
   verbatim so the app parses it exactly like a direct Anthropic call.
 
 ## Deploy notes
 
 Put it behind HTTPS (a reverse proxy or a platform that terminates TLS) —
-UIO refuses non-`https` hosted endpoints except `localhost`. Keep
+VDS refuses non-`https` hosted endpoints except `localhost`. Keep
 `/v1/design/stream` unbuffered so streaming works (disable proxy buffering).
 For anything beyond a handful of users, move `tokens.json`/`usage.json` to a
 real datastore; the JSON files are fine for small groups and demos.
