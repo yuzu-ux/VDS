@@ -13,6 +13,15 @@ import { vds } from '../bridge';
 import { ChatPane } from '../components/ChatPane';
 import { CanvasPane } from '../components/CanvasPane';
 
+function glyphFor(id?: string): string {
+  if (id === 'claude') return '✳';
+  if (id === 'codex') return '⌘';
+  if (id === 'gemini') return '✦';
+  if (id === 'cursor-agent') return '▸';
+  if (id === 'opencode') return '◇';
+  return '✳';
+}
+
 export function Studio(props: {
   projectId: string;
   initialPrompt?: string;
@@ -38,7 +47,13 @@ export function Studio(props: {
   const [model, setModel] = useState('default');
 
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
-  const activeRuntime = availableRuntimes.find((r) => r.id === runtimeId) ?? availableRuntimes[0] ?? null;
+  // Prefer a CLI that is actually logged in — an installed-but-unauthenticated
+  // CLI (e.g. claude before /login) would fail every run.
+  const activeRuntime =
+    availableRuntimes.find((r) => r.id === runtimeId) ??
+    availableRuntimes.find((r) => r.authenticated !== false) ??
+    availableRuntimes[0] ??
+    null;
   const source = settings?.engineSource ?? 'local-cli';
   const isProvider = source !== 'local-cli';
   const canSend = isProvider || !!activeRuntime;
@@ -190,7 +205,7 @@ export function Studio(props: {
             <select className="btn small" value={activeRuntime?.id ?? ''} onChange={(e) => setRuntimeId(e.target.value)} title="Design engine">
               {availableRuntimes.length === 0 && <option value="">No engine detected</option>}
               {availableRuntimes.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+                <option key={r.id} value={r.id}>{r.name}{r.authenticated === false ? ' — login required' : ''}</option>
               ))}
             </select>
             <select className="btn small" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
@@ -209,10 +224,12 @@ export function Studio(props: {
           running={running}
           runStartedAt={runStartedAt}
           engineName={isProvider ? engineLabel : activeRuntime?.name ?? null}
+          engineGlyph={isProvider ? '◎' : glyphFor(activeRuntime?.id)}
           comments={comments}
           onRemoveComment={(i) => setComments((prev) => prev.filter((_, idx) => idx !== i))}
           onSend={send}
           onStop={stop}
+          onOpenFile={(p) => setActiveFile(p)}
         />
         <CanvasPane
           projectId={projectId}

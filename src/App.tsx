@@ -55,6 +55,12 @@ export function App() {
           settings={settings}
           onOpenProject={(id, name, prompt) => openProject(id, name, prompt)}
           onOpenSettings={() => setShowSettings(true)}
+          onRescanRuntimes={() => refreshRuntimes(true)}
+          onSaveSettings={async (patch) => {
+            const next = await vds().setSettings(patch);
+            setSettings(next);
+            return next;
+          }}
         />
       ) : (
         openProjectId && (

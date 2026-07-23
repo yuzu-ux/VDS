@@ -88,8 +88,8 @@ function emit(envelope: EngineEventEnvelope) {
 const mock: VdsBridge = {
   async listRuntimes() {
     const infos: RuntimeInfo[] = [
-      { id: 'claude', name: 'Claude Code', bin: 'claude', available: true, version: 'browser mock', resolvedPath: '/mock/claude', models: [{ id: 'default', label: 'Default model' }, { id: 'opus', label: 'Opus' }], supportsResume: true },
-      { id: 'codex', name: 'Codex CLI', bin: 'codex', available: false, models: [{ id: 'default', label: 'Default model' }], supportsResume: true },
+      { id: 'claude', name: 'Claude Code', bin: 'claude', available: true, version: 'browser mock', resolvedPath: '/mock/claude', models: [{ id: 'default', label: 'Default model' }, { id: 'opus', label: 'Opus' }], supportsResume: true, authenticated: false, authHint: 'Claude Code is installed but not authenticated. Open a terminal, run `claude` and complete /login, then Rescan.' },
+      { id: 'codex', name: 'Codex CLI', bin: 'codex', available: true, version: 'browser mock', resolvedPath: '/mock/codex', models: [{ id: 'default', label: 'Default model' }], supportsResume: true, authenticated: true },
     ];
     return infos;
   },
@@ -116,6 +116,7 @@ const mock: VdsBridge = {
   },
   async readFile(projectId, relPath) { return mem.files.get(projectId)?.get(relPath) ?? ''; },
   async getTranscript(projectId) { return mem.transcripts.get(projectId) ?? []; },
+  async getThumbnail() { return null; },
 
   async startTurn(req) {
     const runId = `mock-${Date.now()}`;

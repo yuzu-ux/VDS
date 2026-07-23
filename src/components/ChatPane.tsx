@@ -6,6 +6,7 @@ type Block =
   | { kind: 'text'; text: string }
   | { kind: 'tool'; id: string; name: string; detail: string; state: 'running' | 'done' | 'error' }
   | { kind: 'todos'; items: TodoItem[] }
+  | { kind: 'file'; path: string }
   | { kind: 'result'; summary: string; durationMs?: number; costUsd?: number; dedupe: boolean }
   | { kind: 'error'; text: string }
   | { kind: 'raw'; text: string };
@@ -15,6 +16,7 @@ function buildBlocks(entries: TranscriptEntry[]): Block[] {
   const blocks: Block[] = [];
   let todoIdx: number | null = null;
   const toolIdx = new Map<string, number>();
+  const seenFiles = new Set<string>();
 
   const lastTexts = () =>
     blocks
@@ -27,6 +29,7 @@ function buildBlocks(entries: TranscriptEntry[]): Block[] {
       blocks.push({ kind: 'user', text: entry.text });
       todoIdx = null;
       toolIdx.clear();
+      seenFiles.clear();
       continue;
     }
     const event: EngineEvent = entry.event;
@@ -53,6 +56,13 @@ function buildBlocks(entries: TranscriptEntry[]): Block[] {
           blocks.push({ kind: 'todos', items: event.items });
         }
         break;
+      case 'file':
+        // One card per deliverable per turn.
+        if (!seenFiles.has(event.path)) {
+          seenFiles.add(event.path);
+          blocks.push({ kind: 'file', path: event.path });
+        }
+        break;
       case 'result': {
         const dedupe = event.summary.trim().length === 0 || lastTexts().includes(event.summary.trim());
         blocks.push({ kind: 'result', summary: event.summary, durationMs: event.durationMs, costUsd: event.costUsd, dedupe });
@@ -74,17 +84,25 @@ function buildBlocks(entries: TranscriptEntry[]): Block[] {
   return blocks;
 }
 
+const NEXT_STEPS: { label: string; icon: string; prompt: string }[] = [
+  { label: 'Match next step', icon: '✦', prompt: 'Take the single most impactful next step for this design and do it.' },
+  { label: 'Design polish / ready to ship', icon: '◈', prompt: 'Do one polish pass: refine spacing, type hierarchy and color balance until this feels ready to ship. No layout rewrites.' },
+  { label: 'Add tasteful motion', icon: '≈', prompt: 'Add tasteful motion — entrance reveals and hover transitions. Keep it subtle and fast.' },
+];
+
 export function ChatPane(props: {
   entries: TranscriptEntry[];
   running: boolean;
   runStartedAt: number | null;
   engineName: string | null;
+  engineGlyph?: string;
   comments: ElementComment[];
   onRemoveComment: (index: number) => void;
   onSend: (text: string) => void;
   onStop: () => void;
+  onOpenFile?: (path: string) => void;
 }) {
-  const { entries, running, runStartedAt, engineName, comments, onRemoveComment, onSend, onStop } = props;
+  const { entries, running, runStartedAt, engineName, engineGlyph, comments, onRemoveComment, onSend, onStop, onOpenFile } = props;
   const blocks = useMemo(() => buildBlocks(entries), [entries]);
   const [draft, setDraft] = useState('');
   const [elapsed, setElapsed] = useState(0);
@@ -108,6 +126,8 @@ export function ChatPane(props: {
     onSend(text);
   };
 
+  const showNextSteps = !running && blocks.length > 0 && blocks[blocks.length - 1].kind === 'result';
+
   return (
     <aside className="chat-pane">
       <div className="chat-tabs">
@@ -120,13 +140,36 @@ export function ChatPane(props: {
             Describe the design you want. Your agent will propose directions, build real files, and preview them on the right.
           </div>
         )}
-        {blocks.map((block, i) => (
-          <BlockView key={i} block={block} />
-        ))}
+        {blocks.map((block, i) => {
+          const agentHead = block.kind !== 'user' && (i === 0 || blocks[i - 1].kind === 'user');
+          return (
+            <div key={i}>
+              {agentHead && engineName && (
+                <div className="agent-head">
+                  <span className="agent-avatar">{engineGlyph ?? '✳'}</span>
+                  <span className="agent-name">{engineName}</span>
+                </div>
+              )}
+              <BlockView block={block} onOpenFile={onOpenFile} />
+            </div>
+          );
+        })}
         {running && (
           <div className="status-line">
             <span className="pulse" />
             Working{engineName ? ` · ${engineName}` : ''} · {formatElapsed(elapsed)}
+          </div>
+        )}
+        {showNextSteps && (
+          <div className="next-steps">
+            <div className="ns-label">NEXT STEP</div>
+            {NEXT_STEPS.map((s) => (
+              <button key={s.label} className="ns-row" onClick={() => onSend(s.prompt)}>
+                <span className="ns-icon">{s.icon}</span>
+                <span className="ns-text">{s.label}</span>
+                <span className="ns-arrow">›</span>
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -169,7 +212,7 @@ export function ChatPane(props: {
   );
 }
 
-function BlockView({ block }: { block: Block }) {
+function BlockView({ block, onOpenFile }: { block: Block; onOpenFile?: (path: string) => void }) {
   switch (block.kind) {
     case 'user':
       return <div className="msg-user">{block.text}</div>;
@@ -183,6 +226,18 @@ function BlockView({ block }: { block: Block }) {
           <span className={`state ${block.state}`}>
             {block.state === 'running' ? '●' : block.state === 'done' ? '✓' : '✕'}
           </span>
+        </div>
+      );
+    case 'file':
+      return (
+        <div className="file-card">
+          <span className="fc-badge">W</span>
+          <span className="fc-name">{block.path}</span>
+          {onOpenFile && (
+            <button className="btn small" onClick={() => onOpenFile(block.path)}>
+              Open
+            </button>
+          )}
         </div>
       );
     case 'todos': {
@@ -211,7 +266,7 @@ function BlockView({ block }: { block: Block }) {
         <>
           {!block.dedupe && block.summary && <div className="msg-assistant">{block.summary}</div>}
           <div className="result-line">
-            ✓ done
+            ✦ Done
             {block.durationMs ? ` · ${Math.round(block.durationMs / 1000)}s` : ''}
             {typeof block.costUsd === 'number' ? ` · $${block.costUsd.toFixed(3)}` : ''}
           </div>

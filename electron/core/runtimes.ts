@@ -3,6 +3,9 @@
 // declares how to launch, how to deliver the prompt, and which stream parser
 // applies. The engine performs the shared lifecycle.
 import { execFile, spawn } from 'node:child_process';
+import { access } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import type { RuntimeInfo, RuntimeModelOption } from '../../shared/types';
 
 export type StreamFormat = 'claude-json' | 'codex-json' | 'text';
@@ -191,6 +194,53 @@ async function probeVersion(env: NodeJS.ProcessEnv, binPath: string, args: strin
   });
 }
 
+// ---------------------------------------------------------------------------
+// Auth probes. Offline checks against each CLI's own credential store, so the
+// UI can say "installed but needs login" instead of failing on the first run.
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function keychainHas(service: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile('/usr/bin/security', ['find-generic-password', '-s', service], { timeout: 4000 }, (err) =>
+      resolve(!err),
+    );
+  });
+}
+
+async function probeAuth(defId: string): Promise<{ authenticated?: boolean; authHint?: string }> {
+  const home = os.homedir();
+  if (defId === 'claude') {
+    const ok =
+      (await fileExists(path.join(home, '.claude', '.credentials.json'))) ||
+      (await keychainHas('Claude Code-credentials'));
+    return ok
+      ? { authenticated: true }
+      : {
+          authenticated: false,
+          authHint:
+            'Claude Code is installed but not authenticated. Open a terminal, run `claude` and complete /login, then Rescan.',
+        };
+  }
+  if (defId === 'codex') {
+    const ok = await fileExists(path.join(home, '.codex', 'auth.json'));
+    return ok
+      ? { authenticated: true }
+      : {
+          authenticated: false,
+          authHint: 'Codex CLI is installed but not signed in. Run `codex login` in a terminal, then Rescan.',
+        };
+  }
+  return {}; // unknown — let the run surface it
+}
+
 let cachedRuntimes: RuntimeInfo[] | null = null;
 
 export async function detectRuntimes(refresh = false): Promise<RuntimeInfo[]> {
@@ -204,6 +254,7 @@ export async function detectRuntimes(refresh = false): Promise<RuntimeInfo[]> {
         if (!resolved) continue;
         const version = await probeVersion(env, resolved, def.versionArgs);
         if (version) {
+          const auth = await probeAuth(def.id);
           return {
             id: def.id,
             name: def.name,
@@ -213,6 +264,7 @@ export async function detectRuntimes(refresh = false): Promise<RuntimeInfo[]> {
             resolvedPath: resolved,
             models: def.models,
             supportsResume: def.supportsResume,
+            ...auth,
           };
         }
       }

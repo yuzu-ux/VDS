@@ -295,17 +295,25 @@ function LocalCliPanel(props: {
             <div className="cli-info">
               <div className="cli-name">
                 {r.name}
-                {r.available ? <span className="badge accent">detected</span> : <span className="badge">not found</span>}
+                {!r.available && <span className="badge">not found</span>}
+                {r.available && r.authenticated === false && <span className="badge warn">login required</span>}
+                {r.available && r.authenticated !== false && <span className="badge accent">ready</span>}
               </div>
               <div className="cli-meta">{r.available ? `${r.version ?? ''} · ${r.resolvedPath ?? ''}` : 'Install and authenticate this CLI, then Rescan.'}</div>
             </div>
             <div className="cli-right">
               {defaultRuntimeId === r.id && r.available && <span className="badge ok">default</span>}
-              {r.available && defaultRuntimeId !== r.id && (
+              {r.available && r.authenticated !== false && defaultRuntimeId !== r.id && (
                 <button className="btn small" onClick={() => onMakeDefault(r.id)}>Make default</button>
               )}
             </div>
           </div>
+          {r.available && r.authenticated === false && (
+            <div className="cli-warn">
+              {r.authHint ?? 'This CLI is installed but not authenticated. Log in from a terminal, then Rescan.'}
+              {' '}If VDS was launched outside a terminal, your shell rc files (e.g. ~/.zshrc) may also not be loaded.
+            </div>
+          )}
         </div>
       ))}
     </>

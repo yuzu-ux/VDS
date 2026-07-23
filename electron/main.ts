@@ -248,14 +248,50 @@ function validateHttpUrl(raw: string): string {
   return u.toString();
 }
 
+// ---------------------------------------------------------------------------
+// Recent-project thumbnails: render the deliverable in a hidden window, cache
+// as .vds/thumb.png. Serialized so the Home grid never opens N windows at once.
+
+let thumbChain: Promise<unknown> = Promise.resolve();
+function enqueueThumb<T>(fn: () => Promise<T>): Promise<T> {
+  const next = thumbChain.then(fn, fn);
+  thumbChain = next.catch(() => undefined);
+  return next;
+}
+
+async function renderThumbnail(absHtmlPath: string): Promise<Buffer | null> {
+  const win = new BrowserWindow({
+    show: false,
+    width: 800,
+    height: 520,
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, offscreen: true },
+  });
+  try {
+    await win.loadFile(absHtmlPath);
+    await new Promise((r) => setTimeout(r, 450)); // let fonts/JS settle
+    const image = await win.webContents.capturePage();
+    return image.resize({ width: 480 }).toPNG();
+  } catch {
+    return null;
+  } finally {
+    win.destroy();
+  }
+}
+
 async function checkEngine(source: EngineSource): Promise<EngineCheck> {
   try {
     if (source === 'local-cli') {
       const runtimes = await detectRuntimes();
       const available = runtimes.filter((r) => r.available);
-      return available.length
-        ? { source, ok: true, detail: available.map((r) => r.name).join(', ') }
-        : { source, ok: false, detail: 'No agent CLI found on PATH. Install `claude` or `codex`, or use a different engine.' };
+      if (!available.length)
+        return { source, ok: false, detail: 'No agent CLI found on PATH. Install `claude` or `codex`, or use a different engine.' };
+      // Only CLIs that are actually logged in count as ready.
+      const ready = available.filter((r) => r.authenticated !== false);
+      if (!ready.length) {
+        const first = available[0];
+        return { source, ok: false, detail: first.authHint ?? `${first.name} needs login — authenticate it in a terminal, then Rescan.` };
+      }
+      return { source, ok: true, detail: ready.map((r) => r.name).join(', ') };
     }
     const settings = await loadSettings();
     const status = await secrets.status();
@@ -314,6 +350,36 @@ function registerIpc() {
     if (!meta) throw new Error('Unknown project');
     return store.readFile(meta, relPath);
   });
+  ipcMain.handle('projects:thumbnail', async (_e, id: string) => {
+    const meta = await store.get(id);
+    if (!meta) return null;
+    const files = await store.listFiles(meta);
+    const htmls = files.filter((f) => f.previewable);
+    if (!htmls.length) return null;
+    const skills = await library.listSkills();
+    const entry = skills.find((s) => s.id === meta.skillId)?.entry;
+    const target = htmls.find((f) => f.path === entry) ?? htmls[0];
+    const abs = path.join(meta.dir, target.path);
+    const cachePath = path.join(meta.dir, '.vds', 'thumb.png');
+    try {
+      const [srcStat, cacheStat] = await Promise.all([fs.stat(abs), fs.stat(cachePath).catch(() => null)]);
+      if (cacheStat && cacheStat.mtimeMs >= srcStat.mtimeMs) {
+        return `data:image/png;base64,${(await fs.readFile(cachePath)).toString('base64')}`;
+      }
+    } catch {
+      /* re-render below */
+    }
+    const png = await enqueueThumb(() => renderThumbnail(abs));
+    if (!png) return null;
+    try {
+      await fs.mkdir(path.dirname(cachePath), { recursive: true });
+      await fs.writeFile(cachePath, png);
+    } catch {
+      /* cache is best-effort */
+    }
+    return `data:image/png;base64,${png.toString('base64')}`;
+  });
+
   ipcMain.handle('projects:transcript', async (_e, id: string) => {
     const meta = await store.get(id);
     return meta ? store.readTranscript(meta) : [];

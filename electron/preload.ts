@@ -14,6 +14,7 @@ const bridge: VdsBridge = {
   listFiles: (id) => ipcRenderer.invoke('projects:files', id),
   readFile: (id, relPath) => ipcRenderer.invoke('projects:read-file', id, relPath),
   getTranscript: (id) => ipcRenderer.invoke('projects:transcript', id),
+  getThumbnail: (id) => ipcRenderer.invoke('projects:thumbnail', id),
 
   startTurn: (req: StartTurnRequest) => ipcRenderer.invoke('engine:start', req),
   cancelTurn: (runId) => ipcRenderer.invoke('engine:cancel', runId),

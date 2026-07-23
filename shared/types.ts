@@ -33,6 +33,13 @@ export interface RuntimeInfo {
   models: RuntimeModelOption[];
   /** Whether the CLI can resume a session for cross-turn working memory. */
   supportsResume: boolean;
+  /**
+   * Login state probed from the CLI's own credential store.
+   * true = ready to run · false = installed but needs login · undefined = unknown.
+   */
+  authenticated?: boolean;
+  /** Human instruction shown when authenticated === false. */
+  authHint?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +202,8 @@ export interface VdsBridge {
   listFiles(projectId: string): Promise<ProjectFile[]>;
   readFile(projectId: string, relPath: string): Promise<string>;
   getTranscript(projectId: string): Promise<TranscriptEntry[]>;
+  /** PNG data-URL preview of the project's deliverable, or null if none yet. */
+  getThumbnail(projectId: string): Promise<string | null>;
 
   startTurn(req: StartTurnRequest): Promise<{ runId: string }>;
   cancelTurn(runId: string): Promise<void>;
