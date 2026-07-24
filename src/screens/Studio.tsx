@@ -22,6 +22,15 @@ function glyphFor(id?: string): string {
   return '✳';
 }
 
+function FinderGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden style={{ marginRight: 1 }}>
+      <path d="M2.5 2.5h11v11h-11z" stroke="currentColor" strokeWidth="1.2" opacity=".55" />
+      <path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.2" opacity=".55" />
+    </svg>
+  );
+}
+
 export function Studio(props: {
   projectId: string;
   initialPrompt?: string;
@@ -45,6 +54,7 @@ export function Studio(props: {
   const [commentMode, setCommentMode] = useState(false);
   const [runtimeId, setRuntimeId] = useState<string | null>(null);
   const [model, setModel] = useState('default');
+  const [headerPop, setHeaderPop] = useState<'engine' | 'model' | null>(null);
 
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
   // Prefer a CLI that is actually logged in — an installed-but-unauthenticated
@@ -60,6 +70,8 @@ export function Studio(props: {
   const isProvider = source !== 'local-cli';
   const canSend = isProvider || !!activeRuntime;
   const engineLabel = source === 'byok' ? 'Your API key' : source === 'hosted' ? 'Hosted' : activeRuntime?.name ?? 'No engine';
+  const models = activeRuntime?.models ?? [{ id: 'default', label: 'Default model' }];
+  const currentModelLabel = models.find((m) => m.id === model)?.label ?? 'Default model';
 
   // initial load
   useEffect(() => {
@@ -204,20 +216,77 @@ export function Studio(props: {
           </span>
         ) : (
           <>
-            <select className="btn small" value={activeRuntime?.id ?? ''} onChange={(e) => setRuntimeId(e.target.value)} title="Design engine">
-              {availableRuntimes.length === 0 && <option value="">No engine detected</option>}
-              {availableRuntimes.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}{r.authenticated === false ? ' — login required' : ''}</option>
-              ))}
-            </select>
-            <select className="btn small" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
-              {(activeRuntime?.models ?? [{ id: 'default', label: 'Default model' }]).map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
+            <div className="pop-anchor">
+              <button
+                className="hdr-select"
+                onClick={() => setHeaderPop((p) => (p === 'engine' ? null : 'engine'))}
+                title="Design engine"
+              >
+                <span className="hs-glyph">{glyphFor(activeRuntime?.id)}</span>
+                <span className="hs-name">{activeRuntime?.name ?? 'No engine'}</span>
+                {activeRuntime && (
+                  <span className={`hs-dot ${activeRuntime.authenticated === false ? 'warn' : 'ok'}`} />
+                )}
+                <span className="hs-caret">▾</span>
+              </button>
+              {headerPop === 'engine' && (
+                <div className="popover engine-pop">
+                  <div className="agp-label">CODE AGENT</div>
+                  {availableRuntimes.length === 0 && (
+                    <div className="hs-empty">No engine detected. Install a CLI, then Rescan in Settings.</div>
+                  )}
+                  {availableRuntimes.map((r) => (
+                    <button
+                      key={r.id}
+                      className={`agp-agent ${activeRuntime?.id === r.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setRuntimeId(r.id);
+                        setHeaderPop(null);
+                      }}
+                    >
+                      <span className="glyph">{glyphFor(r.id)}</span>
+                      <span className="aname">{r.name}</span>
+                      <span className={`ameta ${r.authenticated === false ? 'warn' : ''}`}>
+                        {r.authenticated === false ? 'login required' : r.version ?? 'ready'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="pop-anchor">
+              <button
+                className="hdr-select"
+                onClick={() => setHeaderPop((p) => (p === 'model' ? null : 'model'))}
+                title="Model"
+              >
+                <span className="hs-name subtle">{currentModelLabel}</span>
+                <span className="hs-caret">▾</span>
+              </button>
+              {headerPop === 'model' && (
+                <div className="popover model-pop">
+                  {models.map((m) => (
+                    <button
+                      key={m.id}
+                      className={`mode-row ${model === m.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setModel(m.id);
+                        setHeaderPop(null);
+                      }}
+                    >
+                      <span className="mlabel">{m.label}</span>
+                      {model === m.id && <span className="mcheck">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
-        <button className="btn small" onClick={() => void vds().openInFinder(projectId)}>Reveal in Finder</button>
+        <button className="btn small ghost" onClick={() => void vds().openInFinder(projectId)} title="Show this project in Finder">
+          <FinderGlyph /> Reveal
+        </button>
+        {headerPop && <div className="pop-backdrop" onClick={() => setHeaderPop(null)} />}
       </header>
 
       <div className="studio-body">
