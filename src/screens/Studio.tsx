@@ -131,8 +131,8 @@ export function Studio(props: {
 
   const send = useCallback(
     async (text: string) => {
-      if (!canSend || running || !text.trim()) return;
-      setEntries((prev) => [...prev, { kind: 'user', text, at: Date.now() }]);
+      if (!canSend || running || (!text.trim() && comments.length === 0)) return;
+      setEntries((prev) => [...prev, { kind: 'user', text: text.trim() || 'Apply the pinned comments to the design.', at: Date.now() }]);
       setRunning(true);
       setRunStartedAt(Date.now());
       setCommentMode(false);

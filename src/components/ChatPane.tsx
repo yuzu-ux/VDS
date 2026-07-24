@@ -120,10 +120,13 @@ export function ChatPane(props: {
   }, [blocks.length, running]);
 
   const send = () => {
+    if (running) return;
     const text = draft.trim();
-    if (!text || running) return;
+    // Pinned element comments are themselves the edit instruction — allow
+    // sending with an empty box as long as at least one comment is attached.
+    if (!text && comments.length === 0) return;
     setDraft('');
-    onSend(text);
+    onSend(text || 'Apply the pinned comments to the design.');
   };
 
   const showNextSteps = !running && blocks.length > 0 && blocks[blocks.length - 1].kind === 'result';
@@ -202,8 +205,8 @@ export function ChatPane(props: {
           {running ? (
             <button className="btn small" onClick={onStop}>■ Stop</button>
           ) : (
-            <button className="btn primary small" onClick={send} disabled={!draft.trim()}>
-              Send
+            <button className="btn primary small" onClick={send} disabled={!draft.trim() && comments.length === 0}>
+              {draft.trim() || comments.length === 0 ? 'Send' : `Apply ${comments.length} comment${comments.length > 1 ? 's' : ''}`}
             </button>
           )}
         </div>
